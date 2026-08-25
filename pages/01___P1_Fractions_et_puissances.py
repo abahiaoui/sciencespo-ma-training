@@ -4,6 +4,7 @@ Séance de pré-rentrée n°1 : nombres, fractions, puissances.
 Fil rouge A : le budget de Villeneuve.
 """
 
+import math
 import random
 from fractions import Fraction
 
@@ -25,7 +26,7 @@ with st.expander("📖 Contexte & objectifs", expanded=True):
         """
 ### 🎯 Ce que cette série entraîne
 Écrire un nombre en **notation scientifique**, diviser deux ordres de grandeur,
-manipuler des **fractions avec des lettres**, appliquer les **règles de puissances**,
+manipuler des **fractions**, appliquer les **règles de puissances**,
 et invalider une règle fausse par un **contre-exemple**.
 
 ### 🧠 Comment lire la correction
@@ -45,6 +46,12 @@ ce que vous ayez « eu bon » une fois.
 
 with st.sidebar:
     st.header("📝 Aide-mémoire — Séance 1")
+    st.markdown("**Écriture scientifique** ($1 \\leqslant a < 10$)")
+    st.latex(r"a \times 10^{n}")
+    st.caption("Un million = $10^{6}$ · Un milliard = $10^{9}$")
+    st.latex(
+        r"\frac{a \times 10^{n}}{b \times 10^{p}} = \frac{a}{b} \times 10^{n-p}"
+    )
     st.markdown("**Fractions** ($b \\neq 0$, $d \\neq 0$)")
     st.latex(
         r"\frac{a}{b}+\frac{c}{d}=\frac{ad+bc}{bd}\qquad"
@@ -90,13 +97,96 @@ def _fmt(x: float, n: int = 2) -> str:
 # --- Famille 1 : notation scientifique et ordre de grandeur ----------------
 
 
-def gen_ordre_de_grandeur() -> Exercice:
+def _sci(valeur: float) -> tuple[float, int]:
+    """(mantisse, exposant) tels que valeur = mantisse × 10**exposant, 1 ⩽ mantisse < 10."""
+    exposant = math.floor(math.log10(valeur))
+    mantisse = valeur / 10**exposant
+    if mantisse >= 10:  # garde-fou contre l'imprécision flottante de log10
+        mantisse, exposant = mantisse / 10, exposant + 1
+    elif mantisse < 1:
+        mantisse, exposant = mantisse * 10, exposant - 1
+    return mantisse, exposant
+
+
+def _etapes_grandeur(
+    conversion_texte: str,
+    mant_n: float, exp_n: int,
+    mant_d: float, exp_d: int,
+    reponse: float,
+    verif_texte: str,
+    interpret_texte: str,
+    unite_reponse: str = "€",
+) -> list:
+    diff = exp_n - exp_d
+    return [
+        Etape(
+            "Identifier — pourquoi la notation scientifique",
+            "On divise une très grande quantité par une grande quantité. "
+            "Poser la division telle quelle est pénible ; en notation scientifique, "
+            "elle devient immédiate car les puissances de 10 se traitent séparément.",
+        ),
+        Etape(
+            "Écrire les deux nombres en notation scientifique",
+            conversion_texte,
+            rf"a \times 10^{{n}} = {mant_n:g} \times 10^{{{exp_n}}}"
+            rf"\qquad b \times 10^{{p}} = {mant_d:g} \times 10^{{{exp_d}}}",
+        ),
+        Etape(
+            "Calculer — séparer mantisses et puissances",
+            "On applique $\\dfrac{a \\times 10^n}{b \\times 10^p} "
+            "= \\dfrac{a}{b} \\times 10^{n-p}$ : les mantisses d'un côté, "
+            "les puissances de 10 de l'autre.",
+            rf"\frac{{{mant_n:g} \times 10^{{{exp_n}}}}}{{{mant_d:g} \times 10^{{{exp_d}}}}}"
+            rf" = \frac{{{mant_n:g}}}{{{mant_d:g}}} \times 10^{{{diff}}}"
+            rf" \approx {mant_n/mant_d:.3f} \times 10^{{{diff}}}"
+            rf" \approx {reponse:.0f}\ \text{{{unite_reponse}}}",
+        ),
+        Etape("Vérifier — le résultat est-il plausible ?", verif_texte),
+        Etape("Interpréter", interpret_texte),
+    ]
+
+
+def _pieges_grandeur(
+    num_brut: float, num_facteur: float, denom_val: float,
+    exp_n: int, exp_d: int, reponse: float,
+    conversion_manquante_texte: str, num_role_texte: str, question_texte: str,
+) -> list:
+    diff = exp_n - exp_d
+    puissance_manquante = round(math.log10(num_facteur))
+    pieges = [
+        (
+            num_brut / denom_val,
+            f"Vous avez divisé les deux nombres **sans convertir** "
+            f"{conversion_manquante_texte} : votre résultat est dans la mauvaise "
+            f"unité. Il manque un facteur $10^{{{puissance_manquante}}}$.",
+        ),
+    ]
+    if diff != 0:  # sinon ces deux pièges dégénèrent en la bonne réponse
+        pieges.append((
+            reponse / 10**diff,
+            "Vous avez correctement divisé les mantisses mais **perdu la puissance "
+            f"de 10** : $10^{{{exp_n}}} / 10^{{{exp_d}}} = 10^{{{diff}}}$, pas $10^{{0}}$.",
+        ))
+        pieges.append((
+            reponse * 10**diff,
+            "Vous avez une puissance de 10 **en trop** : vérifiez le calcul "
+            f"$10^{{{exp_n}}} / 10^{{{exp_d}}}$ — on **soustrait** les exposants.",
+        ))
+    pieges.append((
+        denom_val / (num_brut * num_facteur),
+        f"Vous avez divisé dans le **mauvais sens** : la question demande "
+        f"{question_texte}, donc {num_role_texte} au numérateur.",
+    ))
+    return pieges
+
+
+def _og_ville() -> Exercice:
     budget = random.choice([150, 180, 210, 240, 300, 360])  # en M€
     pop = random.choice([120_000, 150_000, 180_000, 200_000, 240_000, 250_000])
-
-    a = budget / 100  # mantisse du budget en euros (x 10^8)
-    b = pop / 100_000  # mantisse de la population (x 10^5)
-    reponse = budget * 1e6 / pop
+    num_val, denom_val = budget * 1e6, pop
+    reponse = num_val / denom_val
+    mant_n, exp_n = _sci(num_val)
+    mant_d, exp_d = _sci(denom_val)
 
     pop_txt = f"{pop:,}".replace(",", " ")
     enonce = f"""
@@ -106,79 +196,430 @@ def gen_ordre_de_grandeur() -> Exercice:
 > Quelle est la **dépense annuelle par habitant** ? Répondez en euros, sans calculatrice.
 """
 
+    etapes = _etapes_grandeur(
+        f"Le budget est exprimé en **millions** d'euros : "
+        f"{budget} M€ = {budget} × 10⁶ € = {mant_n:g} × 10^{exp_n} €. "
+        "C'est la conversion que l'on oublie le plus souvent.",
+        mant_n, exp_n, mant_d, exp_d, reponse,
+        "Une commune française dépense typiquement de l'ordre de **1 000 à "
+        "2 000 € par habitant et par an**. Un résultat en centimes ou en "
+        "millions signalerait une erreur de conversion, pas une erreur de calcul.",
+        f"Chaque habitant de Villeneuve « coûte » environ **{_fmt(reponse, 0)} €** "
+        "de dépense publique locale par an. Ce nombre n'a de sens que **comparé** : "
+        "à une autre ville, à une autre année, ou à la moyenne nationale. "
+        "C'est tout l'objet de la séance 2.",
+        unite_reponse="€/habitant",
+    )
+    pieges = _pieges_grandeur(
+        budget, 1e6, denom_val, exp_n, exp_d, reponse,
+        "les millions d'euros en euros", "le budget", "des euros *par habitant*",
+    )
+
+    return Exercice(
+        enonce=enonce, reponse=reponse, etapes=etapes,
+        libelle="Dépense par habitant", unite="€", tolerance=0.01,
+        indice="Convertissez d'abord les millions d'euros en euros. "
+        "Puis divisez les mantisses d'un côté, les puissances de 10 de l'autre.",
+        pieges=pieges,
+    )
+
+
+def _og_departement() -> Exercice:
+    budget_md = random.choice([1, 2, 3, 4, 5, 6])  # en Md€
+    pop = random.choice(
+        [800_000, 1_000_000, 1_200_000, 1_500_000, 1_800_000, 2_200_000, 2_800_000]
+    )
+    num_val, denom_val = budget_md * 1e9, pop
+    reponse = num_val / denom_val
+    mant_n, exp_n = _sci(num_val)
+    mant_d, exp_d = _sci(denom_val)
+
+    pop_txt = f"{pop:,}".replace(",", " ")
+    unite_md = "milliard" + ("s" if budget_md > 1 else "")
+    enonce = f"""
+> **Le département dont dépend Villeneuve.** Son budget annuel s'élève à
+> **{budget_md} {unite_md} d'euros** pour **{pop_txt} habitants**.
+>
+> Quelle est la **dépense annuelle par habitant** ? Répondez en euros, sans calculatrice.
+"""
+
+    etapes = _etapes_grandeur(
+        f"Le budget est exprimé en **milliards** d'euros : "
+        f"{budget_md} Md€ = {budget_md} × 10⁹ € = {mant_n:g} × 10^{exp_n} €. "
+        "Une échelle bien plus grande que celle d'une commune.",
+        mant_n, exp_n, mant_d, exp_d, reponse,
+        "À l'échelle d'un département, la dépense par habitant reste en général de "
+        "l'ordre de **quelques centaines à quelques milliers d'euros**. Un résultat "
+        "en centimes ou en centaines de milliers signalerait une erreur de conversion.",
+        f"Le département dépense environ **{_fmt(reponse, 0)} €** par habitant et "
+        "par an — un ordre de grandeur différent de celui de la ville, alors que la "
+        "méthode de calcul est rigoureusement identique. C'est ce qui compte : la "
+        "méthode ne dépend pas de l'échelle.",
+        unite_reponse="€/habitant",
+    )
+    pieges = _pieges_grandeur(
+        budget_md, 1e9, denom_val, exp_n, exp_d, reponse,
+        "les milliards d'euros en euros", "le budget", "des euros *par habitant*",
+    )
+
+    return Exercice(
+        enonce=enonce, reponse=reponse, etapes=etapes,
+        libelle="Dépense par habitant", unite="€", tolerance=0.01,
+        indice="Convertissez d'abord les milliards d'euros en euros. "
+        "Puis divisez les mantisses d'un côté, les puissances de 10 de l'autre.",
+        pieges=pieges,
+    )
+
+
+def _og_ecole() -> Exercice:
+    budget = random.choice([10, 12, 15, 18, 20, 25])  # M€, budget scolaire de la ville
+    nb_eleves = random.choice([2_000, 2_500, 3_000, 4_000, 5_000, 6_000, 8_000])
+    num_val, denom_val = budget * 1e6, nb_eleves
+    reponse = num_val / denom_val
+    mant_n, exp_n = _sci(num_val)
+    mant_d, exp_d = _sci(denom_val)
+
+    nb_txt = f"{nb_eleves:,}".replace(",", " ")
+    enonce = f"""
+> **Villeneuve.** Le budget consacré aux établissements scolaires s'élève à
+> **{budget} millions d'euros** par an, pour **{nb_txt} élèves** scolarisés dans la ville.
+>
+> Quel est le **coût annuel par élève** ? Répondez en euros, sans calculatrice.
+"""
+
+    etapes = _etapes_grandeur(
+        f"Le budget est exprimé en **millions** d'euros : "
+        f"{budget} M€ = {budget} × 10⁶ € = {mant_n:g} × 10^{exp_n} €. "
+        "Le nombre d'élèves, lui, se compte déjà en milliers.",
+        mant_n, exp_n, mant_d, exp_d, reponse,
+        "Un établissement scolaire coûte typiquement de l'ordre de **quelques "
+        "milliers d'euros par élève et par an**, tout compris (personnel, locaux, "
+        "matériel). Un résultat en dizaines d'euros ou en millions signalerait une "
+        "erreur de conversion.",
+        f"Chaque élève « coûte » environ **{_fmt(reponse, 0)} €** par an à la "
+        "collectivité. Ce chiffre est de la même nature que la dépense par habitant "
+        "vue plus haut : un budget total rapporté à un effectif.",
+        unite_reponse="€/élève",
+    )
+    pieges = _pieges_grandeur(
+        budget, 1e6, denom_val, exp_n, exp_d, reponse,
+        "les millions d'euros en euros", "le budget", "un coût *par élève*",
+    )
+
+    return Exercice(
+        enonce=enonce, reponse=reponse, etapes=etapes,
+        libelle="Coût par élève", unite="€", tolerance=0.01,
+        indice="Convertissez d'abord les millions d'euros en euros. "
+        "Puis divisez les mantisses d'un côté, les puissances de 10 de l'autre.",
+        pieges=pieges,
+    )
+
+
+def _og_voirie() -> Exercice:
+    budget = random.choice([2, 3, 4, 5, 6, 8, 10])  # M€, entretien de la voirie
+    km = random.choice([80, 100, 150, 200, 250, 300, 400, 500])
+    num_val, denom_val = budget * 1e6, km
+    reponse = num_val / denom_val
+    mant_n, exp_n = _sci(num_val)
+    mant_d, exp_d = _sci(denom_val)
+
+    enonce = f"""
+> **Villeneuve.** Le budget d'entretien de la voirie s'élève à
+> **{budget} millions d'euros** par an, pour **{km} kilomètres** de routes communales.
+>
+> Quel est le **coût annuel par kilomètre entretenu** ? Répondez en euros, sans calculatrice.
+"""
+
+    etapes = _etapes_grandeur(
+        f"Le budget est exprimé en **millions** d'euros : "
+        f"{budget} M€ = {budget} × 10⁶ € = {mant_n:g} × 10^{exp_n} €. "
+        "Le linéaire de voirie, lui, se compte déjà en kilomètres.",
+        mant_n, exp_n, mant_d, exp_d, reponse,
+        "L'entretien de voirie coûte, selon les tronçons, de quelques milliers à "
+        "plusieurs dizaines de milliers d'euros par kilomètre et par an. Un résultat "
+        "en centimes ou en dizaines de millions signalerait une erreur de conversion.",
+        f"Chaque kilomètre de voirie coûte environ **{_fmt(reponse, 0)} €** par an à "
+        "entretenir. Multiplié par tout le réseau communal, ce chiffre explique une "
+        "part importante du budget des transports.",
+        unite_reponse="€/km",
+    )
+    pieges = _pieges_grandeur(
+        budget, 1e6, denom_val, exp_n, exp_d, reponse,
+        "les millions d'euros en euros", "le budget", "un coût *par kilomètre*",
+    )
+
+    return Exercice(
+        enonce=enonce, reponse=reponse, etapes=etapes,
+        libelle="Coût par kilomètre", unite="€", tolerance=0.01,
+        indice="Convertissez d'abord les millions d'euros en euros. "
+        "Puis divisez les mantisses d'un côté, les puissances de 10 de l'autre.",
+        pieges=pieges,
+    )
+
+
+def _og_pib() -> Exercice:
+    # (PIB en Md€, population en millions) — paires choisies pour rester dans une
+    # fourchette de PIB par habitant plausible (quelques milliers à ~50 000 €).
+    budget_md, pop_millions = random.choice(
+        [
+            (50, 20), (80, 15), (120, 10), (200, 25), (300, 8),
+            (400, 30), (600, 12), (800, 40), (150, 5), (1000, 50),
+        ]
+    )
+    num_val, denom_val = budget_md * 1e9, pop_millions * 1e6
+    reponse = num_val / denom_val
+    mant_n, exp_n = _sci(num_val)
+    mant_d, exp_d = _sci(denom_val)
+
+    enonce = f"""
+> **Économie.** Un pays — appelons-le la Norlandie — produit une richesse totale
+> (PIB) de **{budget_md} milliards d'euros** par an, pour une population de
+> **{pop_millions} millions d'habitants**.
+>
+> Quel est le **PIB par habitant** de ce pays ? Répondez en euros, sans calculatrice.
+"""
+
+    etapes = _etapes_grandeur(
+        f"Le PIB est exprimé en **milliards** d'euros : "
+        f"{budget_md} Md€ = {budget_md} × 10⁹ € = {mant_n:g} × 10^{exp_n} €. "
+        "La population, en millions, se convertit de la même façon.",
+        mant_n, exp_n, mant_d, exp_d, reponse,
+        "Le PIB par habitant se situe, selon les pays, entre quelques milliers et "
+        "environ 50 000 € par an. Un résultat en centimes ou en millions signalerait "
+        "une erreur de conversion.",
+        f"Le PIB par habitant de la Norlandie est d'environ **{_fmt(reponse, 0)} €**. "
+        "C'est l'indicateur le plus utilisé pour comparer des économies, mais il ne "
+        "dit rien des **inégalités internes** : deux pays au même PIB par habitant "
+        "peuvent avoir des niveaux de vie très différents selon la façon dont la "
+        "richesse y est répartie.",
+        unite_reponse="€/habitant",
+    )
+    pieges = _pieges_grandeur(
+        budget_md, 1e9, denom_val, exp_n, exp_d, reponse,
+        "les milliards d'euros en euros", "le PIB", "des euros *par habitant*",
+    )
+
+    return Exercice(
+        enonce=enonce, reponse=reponse, etapes=etapes,
+        libelle="PIB par habitant", unite="€", tolerance=0.01,
+        indice="Convertissez d'abord milliards et millions en euros et en habitants. "
+        "Puis divisez les mantisses d'un côté, les puissances de 10 de l'autre.",
+        pieges=pieges,
+    )
+
+
+def _og_carbone() -> Exercice:
+    # (émissions en Mt de CO2, population en millions).
+    emissions_mt, pop_millions = random.choice(
+        [
+            (100, 10), (300, 20), (50, 25), (400, 10), (150, 30),
+            (600, 15), (80, 40), (250, 50), (900, 45), (60, 6),
+        ]
+    )
+    num_val, denom_val = emissions_mt * 1e6, pop_millions * 1e6
+    reponse = num_val / denom_val
+    mant_n, exp_n = _sci(num_val)
+    mant_d, exp_d = _sci(denom_val)
+
+    enonce = f"""
+> **Environnement.** Un pays industrialisé émet **{emissions_mt} millions de tonnes
+> de CO2** par an, pour une population de **{pop_millions} millions d'habitants**.
+>
+> Quelle est l'**empreinte carbone par habitant** de ce pays, en tonnes de CO2 par an ?
+> Sans calculatrice.
+"""
+
+    etapes = _etapes_grandeur(
+        f"Les émissions sont exprimées en **millions de tonnes** : "
+        f"{emissions_mt} Mt = {emissions_mt} × 10⁶ t = {mant_n:g} × 10^{exp_n} t. "
+        "La population, en millions, se convertit de la même façon.",
+        mant_n, exp_n, mant_d, exp_d, reponse,
+        "Selon les pays, un habitant émet entre 2 et 20 tonnes de CO2 par an ; les "
+        "plus gros émetteurs par habitant dépassent parfois 30 tonnes. Un résultat "
+        "en dixièmes de tonne ou en milliers de tonnes signalerait une erreur de "
+        "conversion.",
+        f"Ce pays émet environ **{_fmt(reponse, 1)} tonnes de CO2 par habitant** et "
+        "par an. Ramener une grandeur nationale à l'échelle individuelle est ce qui "
+        "permet de comparer des pays de tailles très différentes sur un pied "
+        "d'égalité — la même logique que le PIB par habitant.",
+        unite_reponse="t CO2/habitant",
+    )
+    pieges = _pieges_grandeur(
+        emissions_mt, 1e6, denom_val, exp_n, exp_d, reponse,
+        "les millions de tonnes en tonnes", "les émissions", "des tonnes *par habitant*",
+    )
+
+    return Exercice(
+        enonce=enonce, reponse=reponse, etapes=etapes,
+        libelle="Émissions par habitant", unite="t CO2", tolerance=0.01,
+        indice="Convertissez les deux quantités en unités de base (tonnes, "
+        "habitants). Puis divisez les mantisses d'un côté, les puissances de 10 "
+        "de l'autre.",
+        pieges=pieges,
+    )
+
+
+def _og_densite() -> Exercice:
+    # (population en millions, superficie en km²) — du territoire très peu peuplé
+    # au territoire très dense.
+    pop_millions, superficie_km2 = random.choice(
+        [
+            (10, 50_000), (5, 20_000), (60, 550_000), (25, 250_000),
+            (80, 400_000), (15, 900_000), (10, 9_000_000), (120, 300_000),
+            (8, 80_000), (200, 3_000_000),
+        ]
+    )
+    num_val, denom_val = pop_millions * 1e6, superficie_km2
+    reponse = num_val / denom_val
+    mant_n, exp_n = _sci(num_val)
+    mant_d, exp_d = _sci(denom_val)
+
+    superficie_txt = f"{superficie_km2:,}".replace(",", " ")
+    enonce = f"""
+> **Géographie humaine.** Un territoire compte **{pop_millions} millions d'habitants**
+> répartis sur **{superficie_txt} km²**.
+>
+> Quelle est la **densité de population** de ce territoire, en habitants par km² ?
+> Sans calculatrice.
+"""
+
+    etapes = _etapes_grandeur(
+        f"La population est exprimée en **millions** : "
+        f"{pop_millions} millions = {pop_millions} × 10⁶ hab. = "
+        f"{mant_n:g} × 10^{exp_n} hab. La superficie, en km², est déjà une unité de base.",
+        mant_n, exp_n, mant_d, exp_d, reponse,
+        "La densité de population varie énormément selon les territoires : de moins "
+        "de 5 habitants par km² dans les zones les plus vastes et les moins peuplées, "
+        "à plusieurs centaines dans les territoires les plus denses. Un résultat en "
+        "dizaines de milliers ou en millièmes signalerait une erreur de conversion.",
+        f"Ce territoire compte environ **{_fmt(reponse, 1)} habitants par km²**. "
+        "Contrairement aux exemples précédents, ce rapport ne divise pas un budget "
+        "par un effectif mais un effectif par une surface : la méthode de notation "
+        "scientifique reste exactement la même, ce qui montre qu'elle s'applique à "
+        "n'importe quel rapport de deux grandeurs, pas seulement à des calculs "
+        "monétaires.",
+        unite_reponse="hab./km²",
+    )
+    pieges = _pieges_grandeur(
+        pop_millions, 1e6, denom_val, exp_n, exp_d, reponse,
+        "les millions d'habitants en habitants", "la population",
+        "des habitants *par km²*",
+    )
+
+    return Exercice(
+        enonce=enonce, reponse=reponse, etapes=etapes,
+        libelle="Densité de population", unite="hab./km²", tolerance=0.01,
+        indice="Convertissez d'abord les millions d'habitants en habitants. "
+        "Puis divisez les mantisses d'un côté, les puissances de 10 de l'autre.",
+        pieges=pieges,
+    )
+
+
+def _og_medecins() -> Exercice:
+    # (médecins en milliers, population en millions) — convention de santé
+    # publique : un taux « pour 100 000 habitants ».
+    medecins_k, pop_millions = random.choice(
+        [
+            (200, 60), (150, 40), (80, 20), (300, 80), (50, 10),
+            (400, 100), (100, 50), (60, 30), (250, 70), (30, 15),
+        ]
+    )
+    medecins, pop = medecins_k * 1000, pop_millions * 1_000_000
+    reponse = medecins / pop * 100_000
+
+    mant_n, exp_n = _sci(medecins)
+    mant_d, exp_d = _sci(pop)
+    diff = exp_n - exp_d
+
+    pop_txt = f"{pop:,}".replace(",", " ")
+    medecins_txt = f"{medecins:,}".replace(",", " ")
+
+    enonce = f"""
+> **Démographie médicale.** Un pays compte **{medecins_txt} médecins en activité**
+> pour une population de **{pop_txt} habitants**.
+>
+> En épidémiologie et en santé publique, ce type de rapport s'exprime presque
+> toujours **pour 100 000 habitants**. Combien ce pays compte-t-il de **médecins
+> pour 100 000 habitants** ? Arrondissez à l'unité.
+"""
+
     etapes = [
         Etape(
-            "Identifier — pourquoi la notation scientifique",
-            "On divise une très grande quantité par une grande quantité. "
-            "Poser la division telle quelle est pénible ; en notation scientifique, "
-            "elle devient immédiate car les puissances de 10 se traitent séparément.",
+            "Identifier — pourquoi « pour 100 000 habitants »",
+            "Le rapport brut médecins/habitants est un nombre minuscule, illisible "
+            "tel quel. La convention en démographie et en santé publique est de le "
+            "**multiplier par 100 000** pour obtenir un nombre lisible, comparable "
+            "d'un pays à l'autre.",
         ),
         Etape(
             "Écrire les deux nombres en notation scientifique",
-            f"Le budget est exprimé en **millions** d'euros : "
-            f"{budget} M€ = {budget} × 10⁶ € = {_fmt(a, 1)} × 10⁸ €. "
-            "C'est la conversion que l'on oublie le plus souvent.",
-            rf"B = {a:g} \times 10^{{8}}\ \text{{€}}"
-            rf"\qquad P = {b:g} \times 10^{{5}}\ \text{{hab.}}",
+            f"{medecins_txt} médecins et {pop_txt} habitants.",
+            rf"a \times 10^{{n}} = {mant_n:g} \times 10^{{{exp_n}}}\ \text{{médecins}}"
+            rf"\qquad b \times 10^{{p}} = {mant_d:g} \times 10^{{{exp_d}}}\ \text{{hab.}}",
         ),
         Etape(
-            "Calculer — séparer mantisses et puissances",
-            "On applique $\\dfrac{a \\times 10^m}{b \\times 10^n} "
-            "= \\dfrac{a}{b} \\times 10^{m-n}$ : les mantisses d'un côté, "
-            "les puissances de 10 de l'autre.",
-            rf"\frac{{{a:g} \times 10^{{8}}}}{{{b:g} \times 10^{{5}}}}"
-            rf" = \frac{{{a:g}}}{{{b:g}}} \times 10^{{3}}"
-            rf" \approx {a/b:.3f} \times 10^{{3}}"
-            rf" \approx {reponse:.0f}\ \text{{€/habitant}}",
+            "Calculer le taux brut, puis ramener à 100 000 habitants",
+            "On divise, puis on multiplie par $10^5$ : les deux opérations se "
+            "traitent en une seule fois sur les puissances de 10.",
+            rf"\frac{{{mant_n:g} \times 10^{{{exp_n}}}}}{{{mant_d:g} \times 10^{{{exp_d}}}}}"
+            rf" \times 10^{{5}} = \frac{{{mant_n:g}}}{{{mant_d:g}}} \times 10^{{{diff}+5}}"
+            rf" \approx {mant_n/mant_d:.3f} \times 10^{{{diff+5}}} \approx {reponse:.0f}",
         ),
         Etape(
             "Vérifier — le résultat est-il plausible ?",
-            "Une commune française dépense typiquement de l'ordre de **1 000 à "
-            "2 000 € par habitant et par an**. Un résultat en centimes ou en "
-            "millions signalerait une erreur de conversion, pas une erreur de calcul.",
+            "Selon les pays, on compte de l'ordre de **100 à 500 médecins pour "
+            "100 000 habitants**. Un résultat à un chiffre ou à six chiffres "
+            "signalerait une erreur de conversion.",
         ),
         Etape(
-            "Interpréter — revenir à la question sociale",
-            f"Chaque habitant de Villeneuve « coûte » environ **{_fmt(reponse, 0)} €** "
-            "de dépense publique locale par an. Ce nombre n'a de sens que **comparé** : "
-            "à une autre ville, à une autre année, ou à la moyenne nationale. "
-            "C'est tout l'objet de la séance 2.",
+            "Interpréter",
+            f"Ce pays compte environ **{round(reponse)} médecins pour 100 000 "
+            "habitants**. Cette mise à l'échelle permet de comparer des pays de "
+            "tailles très différentes : un grand pays a mécaniquement plus de "
+            "médecins qu'un petit, mais pas forcément plus **par habitant**.",
+        ),
+    ]
+
+    pieges = [
+        (
+            medecins / pop,
+            "Vous avez oublié de **multiplier par 100 000** : votre résultat est le "
+            "taux brut, illisible tel quel.",
+        ),
+        (
+            medecins / pop * 1000,
+            "Vous avez multiplié par 1 000 au lieu de 100 000 : relisez la "
+            "convention « pour 100 000 habitants ».",
+        ),
+        (
+            pop / medecins * 100_000,
+            "Vous avez divisé dans le **mauvais sens** : ce sont les médecins qu'on "
+            "rapporte à la population, pas l'inverse.",
+        ),
+        (
+            medecins_k / pop_millions,
+            "Vous avez divisé les nombres **tels qu'affichés** (en milliers et en "
+            "millions) sans les ramener à la même unité de base avant de calculer "
+            "le taux.",
         ),
     ]
 
     return Exercice(
-        enonce=enonce,
-        reponse=reponse,
-        etapes=etapes,
-        libelle="Dépense par habitant",
-        unite="€",
-        tolerance=0.01,
-        indice="Convertissez d'abord les millions d'euros en euros. "
-        "Puis divisez les mantisses d'un côté, les puissances de 10 de l'autre.",
-        pieges=[
-            (
-                budget / pop,
-                "Vous avez divisé **des millions d'euros** par des habitants sans "
-                "convertir : votre résultat est en millions d'euros par habitant. "
-                "Il manque le facteur 10⁶.",
-            ),
-            (
-                reponse / 1000,
-                "Vous avez correctement divisé les mantisses mais **perdu la puissance "
-                "de 10** : $10^8 / 10^5 = 10^3$, pas $10^0$.",
-            ),
-            (
-                reponse * 1000,
-                "Vous avez une puissance de 10 **en trop** : vérifiez le calcul "
-                "$10^8 / 10^5$ — on **soustrait** les exposants.",
-            ),
-            (
-                pop / (budget * 1e6),
-                "Vous avez divisé dans le **mauvais sens** : la question demande "
-                "des euros *par habitant*, donc le budget au numérateur.",
-            ),
-        ],
+        enonce=enonce, reponse=reponse, etapes=etapes,
+        libelle="Médecins pour 100 000 habitants", tolerance_abs=1,
+        indice="Divisez d'abord le nombre de médecins par la population, puis "
+        "multipliez par 100 000 pour obtenir un taux lisible.",
+        pieges=pieges,
     )
+
+
+def gen_ordre_de_grandeur() -> Exercice:
+    return random.choice(
+        [
+            _og_ville, _og_departement, _og_ecole, _og_voirie,
+            _og_pib, _og_carbone, _og_densite, _og_medecins,
+        ]
+    )()
 
 
 # --- Famille 2 : fractions emboîtées ---------------------------------------
@@ -279,196 +720,241 @@ def gen_fractions_emboitees() -> Exercice:
 # --- Famille 3 : fractions avec des lettres --------------------------------
 
 
-def gen_fractions_litterales() -> Exercice:
-    modele = random.choice(["somme_x", "division", "inverses", "difference"])
-    x, y, a, b, c, d = sp.symbols("x y a b c d")
+def gen_fractions_operations() -> Exercice:
+    modele = random.choice(["somme", "difference", "division", "inverses"])
+    denoms = [2, 3, 4, 5, 6, 8, 9, 10, 12]
 
-    if modele == "somme_x":
-        p, q = random.sample([2, 3, 4, 5, 6], 2)
-        expression = sp.latex(x / p + x / q)
-        reponse = sp.together(x / p + x / q)
-        symboles = ["x"]
+    if modele == "somme":
+        q1, q2 = random.sample(denoms, 2)
+        n1 = random.randint(1, q1 - 1)
+        n2 = random.randint(1, q2 - 1)
+        commun = q1 * q2
+        reponse = float(Fraction(n1, q1) + Fraction(n2, q2))
+        expression = rf"\frac{{{n1}}}{{{q1}}} + \frac{{{n2}}}{{{q2}}}"
         etapes = [
             Etape(
                 "Identifier — une somme de fractions",
-                "Pour additionner, il faut un **dénominateur commun**. "
-                "Le produit des deux dénominateurs convient toujours "
-                f"(ici {p} × {q} = {p*q}), même s'il n'est pas le plus petit.",
+                "Pour additionner deux fractions, il faut d'abord les mettre au "
+                "**même dénominateur**. Le produit des deux dénominateurs "
+                f"convient toujours (ici {q1} × {q2} = {commun}), même s'il "
+                "n'est pas le plus petit.",
             ),
             Etape(
                 "Mettre au même dénominateur",
                 "On multiplie chaque fraction par ce qui lui manque.",
-                rf"\frac{{x}}{{{p}}} + \frac{{x}}{{{q}}} = "
-                rf"\frac{{{q}x}}{{{p*q}}} + \frac{{{p}x}}{{{p*q}}}",
+                rf"\frac{{{n1}}}{{{q1}}} + \frac{{{n2}}}{{{q2}}} = "
+                rf"\frac{{{n1*q2}}}{{{commun}}} + \frac{{{n2*q1}}}{{{commun}}}",
             ),
             Etape(
                 "Additionner les numérateurs",
-                "Le dénominateur ne change plus ; on factorise par $x$.",
-                rf"= \frac{{{q}x + {p}x}}{{{p*q}}} = {sp.latex(sp.simplify(reponse))}",
+                "Le dénominateur ne change plus.",
+                rf"= \frac{{{n1*q2} + {n2*q1}}}{{{commun}}} = "
+                rf"\frac{{{n1*q2+n2*q1}}}{{{commun}}} \approx {reponse:.4f}",
             ),
             Etape(
-                "Vérifier — le test numérique",
-                f"Prenons $x = {p*q}$ : à gauche ${q} + {p} = {p+q}$, "
-                f"à droite $\\frac{{{p+q}}}{{{p*q}}} \\times {p*q} = {p+q}$. "
-                "Les deux coïncident. Ce test de 5 secondes détecte "
-                "l'immense majorité des erreurs.",
-            ),
-            Etape(
-                "Interpréter — pourquoi ça servira",
-                "Regrouper deux termes en une seule fraction est ce qui permettra, "
-                "au semestre, de factoriser une dérivée et d'en lire le signe.",
-            ),
-        ]
-        pieges = [
-            (x / (p + q), "Vous avez **additionné les dénominateurs**. "
-             "Testez avec $x = 1$ : $\\frac{1}{2} + \\frac{1}{2} = 1$, "
-             "et non $\\frac{1}{4}$."),
-        ]
-
-    elif modele == "division":
-        expression = r"\frac{a+b}{c} \div \frac{a+b}{d}"
-        reponse = d / c
-        symboles = ["a", "b", "c", "d"]
-        etapes = [
-            Etape(
-                "Identifier — une division de fractions",
-                "Diviser par une fraction, c'est **multiplier par son inverse**. "
-                "Rien d'autre n'est à faire pour l'instant.",
-            ),
-            Etape(
-                "Transformer la division en multiplication",
-                "On retourne la seconde fraction.",
-                r"\frac{a+b}{c} \div \frac{a+b}{d} = "
-                r"\frac{a+b}{c} \times \frac{d}{a+b}",
-            ),
-            Etape(
-                "Simplifier",
-                "Le facteur $(a+b)$ apparaît au numérateur **et** au dénominateur : "
-                "on peut le simplifier, à condition que $a + b \\neq 0$.",
-                r"= \frac{(a+b)\,d}{c\,(a+b)} = \frac{d}{c}",
-            ),
-            Etape(
-                "Vérifier — attention à la condition",
-                "La simplification n'est licite que si $a+b \\neq 0$. "
-                "En sciences sociales, cette condition a souvent un sens concret "
-                "(un effectif non nul, un budget non vide) : ne la traitez pas "
-                "comme une formalité.",
+                "Vérifier — encadrement rapide",
+                f"Chaque fraction est inférieure à 1, donc la somme doit être "
+                f"inférieure à 2 : {_fmt(reponse, 4)} satisfait bien cet "
+                "encadrement.",
             ),
             Etape(
                 "Interpréter",
-                "Le résultat ne dépend plus du tout de $a$ ni de $b$. "
-                "Reconnaître qu'un bloc entier se simplifie évite des calculs "
-                "inutiles — c'est un réflexe payant à l'examen.",
+                "Regrouper deux fractions en une seule est le geste qui "
+                "reviendra sans cesse : pour combiner deux parts en "
+                "statistique, ou factoriser un résultat en calcul de dérivée.",
             ),
         ]
         pieges = [
-            (c / d, "Vous avez inversé le rapport : c'est la **seconde** fraction "
-             "que l'on retourne, pas la première."),
-            ((a + b) ** 2 / (c * d), "Vous avez **multiplié** les deux fractions au "
-             "lieu de diviser : il fallait retourner la seconde."),
+            (float(Fraction(n1 + n2, q1 + q2)),
+             "Vous avez additionné **les numérateurs entre eux et les "
+             "dénominateurs entre eux**. C'est faux : testez avec deux "
+             "moitiés, $\\frac12+\\frac12=1$, et non $\\frac24$ (qui vaut "
+             "$\\frac12$)."),
+            (float(Fraction(n1 + n2, commun)),
+             "Vous avez trouvé le bon dénominateur commun mais oublié de "
+             "**multiplier aussi les numérateurs** par ce qui manquait à "
+             "chacun."),
         ]
+        libelle, indice = "Résultat", (
+            "Cherchez un dénominateur commun — le produit des deux convient "
+            "toujours — puis convertissez chaque numérateur."
+        )
 
-    elif modele == "inverses":
-        expression = r"\frac{1}{x} + \frac{1}{y}"
-        reponse = (x + y) / (x * y)
-        symboles = ["x", "y"]
-        etapes = [
-            Etape(
-                "Identifier — le piège numéro un du programme",
-                "La tentation est d'écrire $\\frac{1}{x+y}$. C'est faux, et c'est "
-                "l'erreur la plus fréquente de toute l'année.",
-            ),
-            Etape(
-                "Mettre au même dénominateur",
-                "Le dénominateur commun est le produit $xy$.",
-                r"\frac{1}{x} + \frac{1}{y} = \frac{y}{xy} + \frac{x}{xy}",
-            ),
-            Etape(
-                "Additionner",
-                "",
-                r"= \frac{x+y}{xy}",
-            ),
-            Etape(
-                "Vérifier — le contre-exemple qui tranche",
-                "Avec $x = y = 1$ : la vraie valeur est $1 + 1 = 2$, "
-                "et $\\frac{x+y}{xy} = \\frac{2}{1} = 2$ ✓, "
-                "tandis que $\\frac{1}{x+y} = \\frac{1}{2}$ ✗. "
-                "Un seul contre-exemple suffit à invalider une règle.",
-            ),
-            Etape(
-                "Interpréter",
-                "Cette forme réapparaîtra telle quelle au semestre, dans le calcul "
-                "de moyennes harmoniques et de vitesses moyennes — deux objets où "
-                "l'erreur $\\frac{1}{x+y}$ donne un résultat absurde.",
-            ),
-        ]
-        pieges = [
-            (1 / (x + y), "C'est **l'erreur interdite** de la séance : "
-             "$\\frac{1}{x}+\\frac{1}{y} \\neq \\frac{1}{x+y}$. "
-             "Testez avec $x=y=1$ : $2 \\neq \\frac{1}{2}$."),
-            ((x + y) / (x + y), "Vérifiez votre dénominateur commun : "
-             "c'est le **produit** $xy$, pas la somme."),
-        ]
-
-    else:  # difference
-        p = random.choice([2, 3, 4, 5])
-        q, r = random.sample([3, 4, 5, 6], 2)
-        expression = sp.latex(p * x / q - x / r)
-        reponse = sp.together(p * x / q - x / r)
-        symboles = ["x"]
+    elif modele == "difference":
+        while True:
+            q1, q2 = random.sample(denoms, 2)
+            n1 = random.randint(1, q1 - 1)
+            n2 = random.randint(1, q2 - 1)
+            if Fraction(n1, q1) > Fraction(n2, q2):
+                break
+        commun = q1 * q2
+        reponse = float(Fraction(n1, q1) - Fraction(n2, q2))
+        expression = rf"\frac{{{n1}}}{{{q1}}} - \frac{{{n2}}}{{{q2}}}"
         etapes = [
             Etape(
                 "Identifier — une différence de fractions",
                 "Même règle que pour la somme : dénominateur commun d'abord. "
-                "Le signe moins porte sur **tout** le numérateur de la seconde "
-                "fraction.",
+                "Le signe moins porte sur **tout** le numérateur de la "
+                "seconde fraction.",
             ),
             Etape(
                 "Mettre au même dénominateur",
-                f"Le dénominateur commun est {q} × {r} = {q*r}.",
-                rf"\frac{{{p}x}}{{{q}}} - \frac{{x}}{{{r}}} = "
-                rf"\frac{{{p*r}x}}{{{q*r}}} - \frac{{{q}x}}{{{q*r}}}",
+                f"Le dénominateur commun est {q1} × {q2} = {commun}.",
+                rf"\frac{{{n1}}}{{{q1}}} - \frac{{{n2}}}{{{q2}}} = "
+                rf"\frac{{{n1*q2}}}{{{commun}}} - \frac{{{n2*q1}}}{{{commun}}}",
             ),
             Etape(
-                "Soustraire et factoriser",
+                "Soustraire",
                 "",
-                rf"= \frac{{({p*r} - {q})x}}{{{q*r}}} = "
-                rf"{sp.latex(sp.simplify(reponse))}",
+                rf"= \frac{{{n1*q2} - {n2*q1}}}{{{commun}}} = "
+                rf"\frac{{{n1*q2-n2*q1}}}{{{commun}}} \approx {reponse:.4f}",
             ),
             Etape(
-                "Vérifier",
-                f"Test avec $x = {q*r}$ : à gauche "
-                f"${p} \\times {r} - {q} = {p*r - q}$ ; "
-                f"à droite, le numérateur vaut aussi ${p*r-q}$. ✓",
+                "Vérifier — le signe",
+                "Le résultat doit être **positif**, puisque la première "
+                "fraction est plus grande que la seconde : "
+                f"{_fmt(reponse, 4)} confirme ce sens.",
             ),
             Etape(
                 "Interpréter",
-                "Si le numérateur avait été négatif, l'expression entière changerait "
-                "de signe : c'est exactement ce type de lecture qui servira à "
-                "déterminer si une grandeur croît ou décroît.",
+                "Si le numérateur final avait été négatif, l'expression "
+                "entière aurait changé de signe : c'est exactement ce type de "
+                "lecture qui servira à déterminer si une grandeur croît ou "
+                "décroît.",
             ),
         ]
         pieges = [
-            (sp.together(x / q - p * x / r),
-             "Vous avez appliqué le coefficient à la mauvaise fraction. "
-             "Relisez l'énoncé avant de calculer."),
+            (float(Fraction(n2, q2) - Fraction(n1, q1)),
+             "Vous avez **inversé l'ordre** de la soustraction : le résultat "
+             "a le bon dénominateur mais le mauvais signe."),
+            (float(Fraction(n1, q1) + Fraction(n2, q2)),
+             "Vous avez **additionné** au lieu de soustraire : relisez "
+             "l'énoncé, c'est bien une différence."),
         ]
+        libelle, indice = "Résultat", (
+            "Même méthode que pour une somme, mais le signe moins porte sur "
+            "tout le numérateur de la seconde fraction."
+        )
+
+    elif modele == "division":
+        k = random.randint(2, 9)
+        c, d = random.sample(denoms, 2)
+        reponse = float(Fraction(d, c))
+        expression = rf"\frac{{{k}}}{{{c}}} \div \frac{{{k}}}{{{d}}}"
+        etapes = [
+            Etape(
+                "Identifier — diviser deux fractions",
+                "Diviser par une fraction, c'est **multiplier par son "
+                "inverse**. Ici, les deux fractions partagent le même "
+                "numérateur — un point commun qui va se simplifier tout "
+                "seul.",
+            ),
+            Etape(
+                "Transformer la division en multiplication",
+                "On retourne la seconde fraction.",
+                rf"\frac{{{k}}}{{{c}}} \div \frac{{{k}}}{{{d}}} = "
+                rf"\frac{{{k}}}{{{c}}} \times \frac{{{d}}}{{{k}}}",
+            ),
+            Etape(
+                "Simplifier",
+                f"Le facteur {k} apparaît au numérateur **et** au "
+                "dénominateur : il se simplifie directement.",
+                rf"= \frac{{{k} \times {d}}}{{{c} \times {k}}} = "
+                rf"\frac{{{d}}}{{{c}}} \approx {reponse:.4f}",
+            ),
+            Etape(
+                "Vérifier — plausibilité",
+                (f"{d} > {c}, donc le résultat doit être **supérieur à 1**."
+                 if d > c else
+                 f"{d} < {c}, donc le résultat doit être **inférieur à 1**.")
+                + f" C'est bien le cas : {_fmt(reponse, 4)}.",
+            ),
+            Etape(
+                "Interpréter",
+                "Reconnaître qu'un facteur commun se simplifie avant de "
+                "multiplier évite des calculs inutiles — un réflexe payant à "
+                "l'examen.",
+            ),
+        ]
+        pieges = [
+            (float(Fraction(c, d)),
+             "Vous avez inversé le rapport : c'est la **seconde** fraction "
+             "que l'on retourne, pas la première."),
+            (float(Fraction(k * k, c * d)),
+             "Vous avez **multiplié** les deux fractions au lieu de diviser : "
+             "il fallait retourner la seconde."),
+        ]
+        libelle, indice = "Résultat", (
+            "Retournez la seconde fraction et multipliez. Le numérateur "
+            "commun aux deux fractions se simplifie."
+        )
+
+    else:  # inverses
+        n1, n2 = random.sample([2, 3, 4, 5, 6, 7, 8, 9], 2)
+        commun = n1 * n2
+        reponse = float(Fraction(1, n1) + Fraction(1, n2))
+        expression = rf"\frac{{1}}{{{n1}}} + \frac{{1}}{{{n2}}}"
+        etapes = [
+            Etape(
+                "Identifier — le piège numéro un du programme",
+                f"La tentation est d'écrire $\\frac{{1}}{{{n1}+{n2}}}$. C'est "
+                "faux, et c'est l'erreur la plus fréquente de toute l'année.",
+            ),
+            Etape(
+                "Mettre au même dénominateur",
+                f"Le dénominateur commun est le produit ${n1} \\times {n2} = "
+                f"{commun}$.",
+                rf"\frac{{1}}{{{n1}}} + \frac{{1}}{{{n2}}} = "
+                rf"\frac{{{n2}}}{{{commun}}} + \frac{{{n1}}}{{{commun}}}",
+            ),
+            Etape(
+                "Additionner",
+                "",
+                rf"= \frac{{{n1+n2}}}{{{commun}}} \approx {reponse:.4f}",
+            ),
+            Etape(
+                "Vérifier — le contre-exemple qui tranche",
+                f"La valeur correcte vaut environ {reponse:.4f}, tandis que "
+                f"le raccourci $\\frac{{1}}{{{n1}+{n2}}} \\approx "
+                f"{1/(n1+n2):.4f}$ donne un résultat différent — la preuve "
+                "que ce raccourci est faux.",
+            ),
+            Etape(
+                "Interpréter",
+                "Cette forme réapparaîtra telle quelle au semestre, dans le "
+                "calcul de moyennes harmoniques et de vitesses moyennes — "
+                "deux objets où le raccourci donne un résultat absurde.",
+            ),
+        ]
+        pieges = [
+            (float(Fraction(1, n1 + n2)),
+             "C'est **l'erreur interdite** de la séance : "
+             f"$\\frac{{1}}{{{n1}}}+\\frac{{1}}{{{n2}}} \\neq "
+             f"\\frac{{1}}{{{n1}+{n2}}}$."),
+            (float(Fraction(2, n1 + n2)),
+             "Vous avez additionné les numérateurs sans passer par le bon "
+             "dénominateur commun : c'est le **produit**, pas la somme, "
+             "qu'il fallait utiliser."),
+        ]
+        libelle, indice = "Résultat", (
+            "N'écrivez jamais $\\frac{1}{a}+\\frac{1}{b}$ comme "
+            "$\\frac{1}{a+b}$. Passez par le dénominateur commun, qui est un "
+            "produit."
+        )
 
     enonce = f"""
-> Simplifiez et écrivez le résultat sous la forme d'**une seule fraction** :
+> Calculez le résultat suivant :
 >
 > $$ {expression} $$
 """
 
     return Exercice(
         enonce=enonce,
-        reponse=sp.simplify(reponse),
+        reponse=reponse,
         etapes=etapes,
-        type_reponse="sym",
-        libelle="Expression simplifiée",
-        symboles=symboles,
-        indice="Les règles sont exactement les mêmes qu'avec des nombres. "
-        "En cas de doute, remplacez les lettres par 1 ou 2 et vérifiez.",
+        libelle=libelle,
+        tolerance=0.001,
+        indice=indice,
         pieges=pieges,
     )
 
@@ -480,9 +966,10 @@ def gen_puissances() -> Exercice:
     modele = random.choice(["imbriquee", "produit_quotient"])
     m, n = random.sample([2, 3, 4, 5], 2)
     p = random.choice([2, 3, 4, 5, 6])
+    base = random.choice([2, 3, 5, 6, 7, 10])
 
     if modele == "imbriquee":
-        expression = rf"\left(a^{{{m}}}\right)^{{{n}}} \times a^{{-{p}}}"
+        expression = rf"\left({base}^{{{m}}}\right)^{{{n}}} \times {base}^{{-{p}}}"
         reponse = m * n - p
         etapes = [
             Etape(
@@ -493,62 +980,64 @@ def gen_puissances() -> Exercice:
             ),
             Etape(
                 "Traiter la puissance de puissance",
-                f"$(a^m)^n = a^{{mn}}$, donc ici $a^{{{m} \\times {n}}}$.",
-                rf"\left(a^{{{m}}}\right)^{{{n}}} = a^{{{m*n}}}",
+                f"$(x^m)^n = x^{{mn}}$, donc ici ${base}^{{{m} \\times {n}}}$.",
+                rf"\left({base}^{{{m}}}\right)^{{{n}}} = {base}^{{{m*n}}}",
             ),
             Etape(
                 "Multiplier les deux puissances",
-                "$a^m \\times a^n = a^{m+n}$ : on additionne, en tenant compte du "
+                "$x^m \\times x^n = x^{m+n}$ : on additionne, en tenant compte du "
                 "signe négatif.",
-                rf"a^{{{m*n}}} \times a^{{-{p}}} = a^{{{m*n} - {p}}} = a^{{{reponse}}}",
+                rf"{base}^{{{m*n}}} \times {base}^{{-{p}}} = "
+                rf"{base}^{{{m*n} - {p}}} = {base}^{{{reponse}}}",
             ),
             Etape(
                 "Vérifier — retour à la définition",
                 "En cas de doute, réécrivez la puissance comme une multiplication "
-                f"répétée : $(a^{m})^{n}$ signifie « $a^{m}$ multiplié {n} fois par "
-                f"lui-même », soit {m} × {n} = {m*n} facteurs $a$. "
-                "La règle se retrouve ainsi sans l'avoir apprise.",
+                f"répétée : $({base}^{m})^{n}$ signifie « ${base}^{m}$ multiplié "
+                f"{n} fois par lui-même », soit {m} × {n} = {m*n} facteurs "
+                f"${base}$. La règle se retrouve ainsi sans l'avoir apprise.",
             ),
             Etape(
                 "Interpréter",
-                "Les exposants négatifs ne sont pas une bizarrerie : $a^{-p}$ est "
-                "une **division**. Toute cette mécanique sera reprise au semestre "
-                "pour les fonctions puissances et les rendements d'échelle.",
+                f"Les exposants négatifs ne sont pas une bizarrerie : ${base}^{{-{p}}}$ "
+                "est une **division**. Toute cette mécanique sera reprise au "
+                "semestre pour les fonctions puissances et les rendements d'échelle.",
             ),
         ]
         pieges = [
             (m + n - p,
-             f"Vous avez traité $(a^{{{m}}})^{{{n}}}$ comme $a^{{{m}+{n}}}$. "
+             f"Vous avez traité $({base}^{{{m}}})^{{{n}}}$ comme ${base}^{{{m}+{n}}}$. "
              "Pour une puissance **de** puissance, on **multiplie** les exposants."),
             (m * n + p,
-             "Erreur de signe : $a^{-p}$ correspond à une soustraction de "
-             "l'exposant, pas à une addition."),
+             f"Erreur de signe : ${base}^{{-{p}}}$ correspond à une soustraction "
+             "de l'exposant, pas à une addition."),
         ]
     else:
-        expression = rf"\frac{{a^{{{m}}} \times a^{{{n}}}}}{{a^{{{p}}}}}"
+        expression = rf"\frac{{{base}^{{{m}}} \times {base}^{{{n}}}}}{{{base}^{{{p}}}}}"
         reponse = m + n - p
         etapes = [
             Etape(
                 "Identifier — produit puis quotient",
-                "Deux règles s'enchaînent : $a^m a^n = a^{m+n}$ au numérateur, "
-                "puis $\\dfrac{a^m}{a^n} = a^{m-n}$.",
+                "Deux règles s'enchaînent : $x^m x^n = x^{m+n}$ au numérateur, "
+                "puis $\\dfrac{x^m}{x^n} = x^{m-n}$.",
             ),
             Etape(
                 "Regrouper le numérateur",
                 "On **additionne** les exposants d'un produit.",
-                rf"a^{{{m}}} \times a^{{{n}}} = a^{{{m+n}}}",
+                rf"{base}^{{{m}}} \times {base}^{{{n}}} = {base}^{{{m+n}}}",
             ),
             Etape(
                 "Diviser",
                 "On **soustrait** l'exposant du dénominateur.",
-                rf"\frac{{a^{{{m+n}}}}}{{a^{{{p}}}}} = a^{{{m+n}-{p}}} = a^{{{reponse}}}",
+                rf"\frac{{{base}^{{{m+n}}}}}{{{base}^{{{p}}}}} = "
+                rf"{base}^{{{m+n}-{p}}} = {base}^{{{reponse}}}",
             ),
             Etape(
                 "Vérifier — le cas particulier révélateur",
-                f"Si les exposants s'étaient annulés, on obtiendrait $a^0 = 1$. "
+                f"Si les exposants s'étaient annulés, on obtiendrait ${base}^0 = 1$. "
                 "Ce n'est pas une convention arbitraire : c'est ce qu'impose la "
-                "règle $\\frac{a^m}{a^m} = a^{m-m}$, puisqu'un nombre divisé par "
-                "lui-même vaut 1.",
+                f"règle $\\frac{{{base}^m}}{{{base}^m}} = {base}^{{m-m}}$, "
+                "puisqu'un nombre divisé par lui-même vaut 1.",
             ),
             Etape(
                 "Interpréter",
@@ -566,11 +1055,11 @@ def gen_puissances() -> Exercice:
         ]
 
     enonce = f"""
-> Simplifiez l'expression suivante (avec $a \\neq 0$) :
+> Simplifiez l'expression suivante :
 >
 > $$ {expression} $$
 >
-> Le résultat s'écrit sous la forme $a^{{n}}$. **Donnez la valeur de $n$.**
+> Le résultat s'écrit sous la forme ${base}^{{n}}$. **Donnez la valeur de $n$.**
 """
 
     return Exercice(
@@ -941,7 +1430,7 @@ onglets = st.tabs(
     [
         "1️⃣ Ordres de grandeur",
         "2️⃣ Fractions emboîtées",
-        "3️⃣ Fractions littérales",
+        "3️⃣ Opérations sur les fractions",
         "4️⃣ Puissances",
         "5️⃣ Racines carrées",
         "6️⃣ Intérêts composés",
@@ -950,7 +1439,7 @@ onglets = st.tabs(
 )
 
 with onglets[0]:
-    st.subheader("Notation scientifique et dépense par habitant")
+    st.subheader("Notation scientifique et ordres de grandeur")
     executer("p1_ordre", gen_ordre_de_grandeur)
 
 with onglets[1]:
@@ -958,8 +1447,8 @@ with onglets[1]:
     executer("p1_frac_emb", gen_fractions_emboitees)
 
 with onglets[2]:
-    st.subheader("Fractions avec des lettres")
-    executer("p1_frac_lit", gen_fractions_litterales)
+    st.subheader("Additionner, soustraire, diviser des fractions")
+    executer("p1_frac_ops", gen_fractions_operations)
 
 with onglets[3]:
     st.subheader("Règles de puissances")

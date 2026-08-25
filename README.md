@@ -1,6 +1,6 @@
 # 📐 Mathématiques Appliquées - Sciences Po Training App
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://sciencespo-maths-training.streamlit.app/)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://sciencespo-ma-training.streamlit.app/)
 
 This is an interactive educational platform built with **Python** and **Streamlit** to help Sciences Po students master the mathematical tools used in the social sciences. Its companion course is *Mathématiques appliquées pour les sciences humaines et sociales*, taught in two modules: a pre-term module (6 sessions) and a semester module (11 sessions).
 
