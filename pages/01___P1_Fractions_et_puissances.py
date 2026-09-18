@@ -11,7 +11,7 @@ from fractions import Fraction
 import streamlit as st
 import sympy as sp
 
-from moteur import Etape, Exercice, executer
+from moteur import Etape, Exercice, executer, executer_vrai_faux
 
 st.set_page_config(
     page_title="P1 | Fractions et puissances", page_icon="➗", layout="wide"
@@ -1287,139 +1287,6 @@ REGLES = [
 ]
 
 
-def famille_contre_exemple() -> None:
-    cle = "p1_regle"
-    k_regle, k_fait = f"{cle}_r", f"{cle}_fait"
-
-    if k_regle not in st.session_state:
-        st.session_state[k_regle] = random.choice(REGLES)
-        st.session_state[k_fait] = False
-
-    regle = st.session_state[k_regle]
-
-    st.markdown(
-        "> La règle suivante est-elle **vraie pour tous les nombres**, "
-        "ou **fausse** ?\n>\n"
-        f"> $$ {regle['latex']} $$\n>\n"
-        "> Si vous la jugez fausse, il ne suffit pas de le dire : "
-        "**produisez un contre-exemple**, c'est-à-dire deux nombres qui la "
-        "mettent en défaut."
-    )
-
-    colonne_gauche, colonne_droite = st.columns([1, 1])
-
-    with colonne_gauche:
-        verdict = st.radio(
-            "Cette règle est :",
-            ["Vraie pour tous les nombres", "Fausse"],
-            index=None,
-            key=f"{cle}_verdict",
-            disabled=st.session_state[k_fait],
-        )
-    with colonne_droite:
-        st.caption("Si vous répondez « Fausse », proposez un contre-exemple :")
-        val_a = st.number_input(
-            "a =", value=1.0, step=1.0, key=f"{cle}_a",
-            disabled=st.session_state[k_fait],
-        )
-        val_b = st.number_input(
-            "b =", value=1.0, step=1.0, key=f"{cle}_b",
-            disabled=st.session_state[k_fait],
-        )
-
-    if not st.session_state[k_fait]:
-        if st.button("✅ Valider", key=f"{cle}_valider", type="primary"):
-            st.session_state[k_fait] = True
-            st.rerun()
-        return
-
-    if st.button("🔄 Nouvelle règle", key=f"{cle}_nouveau"):
-        for k in list(st.session_state.keys()):
-            if k.startswith(cle):
-                st.session_state.pop(k, None)
-        st.rerun()
-
-    st.markdown("---")
-    verdict = st.session_state.get(f"{cle}_verdict")
-    val_a = st.session_state.get(f"{cle}_a", 1.0)
-    val_b = st.session_state.get(f"{cle}_b", 1.0)
-
-    dit_vraie = verdict == "Vraie pour tous les nombres"
-
-    if verdict is None:
-        st.warning("Aucun verdict donné. Voici la correction.")
-    elif dit_vraie == regle["vraie"]:
-        if regle["vraie"]:
-            st.success("✅ Verdict correct : cette règle est bien **vraie**.")
-        else:
-            st.success("✅ Verdict correct : cette règle est **fausse**.")
-    else:
-        st.error(
-            f"❌ Verdict incorrect : cette règle est en réalité "
-            f"**{'vraie' if regle['vraie'] else 'fausse'}**."
-        )
-
-    # Test numérique du contre-exemple proposé
-    if not regle["vraie"] and verdict == "Fausse":
-        st.markdown("#### 🔬 Test de votre contre-exemple")
-        try:
-            g = regle["gauche"](val_a, val_b)
-            d = regle["droite"](val_a, val_b)
-            colonne_1, colonne_2 = st.columns(2)
-            colonne_1.metric("Membre de gauche", f"{g:.4f}")
-            colonne_2.metric("Membre de droite", f"{d:.4f}")
-            if abs(g - d) > 1e-9:
-                st.success(
-                    f"✅ Contre-exemple **valide** : avec a = {val_a:g} et "
-                    f"b = {val_b:g}, les deux membres diffèrent. "
-                    "Une seule valeur suffit à démolir une règle prétendument "
-                    "générale — c'est la méthode qu'il faut retenir."
-                )
-            else:
-                st.warning(
-                    f"⚠️ Avec ces valeurs, les deux membres coïncident : ce n'est "
-                    "donc **pas** un contre-exemple, même si la règle est fausse. "
-                    "Essayez d'autres nombres — évitez 0, et méfiez-vous des cas "
-                    "trop symétriques."
-                )
-        except (ZeroDivisionError, ValueError, TypeError):
-            st.warning(
-                "⚠️ Ces valeurs rendent l'expression indéfinie (division par zéro "
-                "ou racine d'un négatif). Un contre-exemple doit rester **dans le "
-                "domaine de validité**, sinon il ne prouve rien."
-            )
-
-    st.markdown("")
-    st.markdown("#### 🧭 La méthode, étape par étape")
-    with st.container(border=True):
-        st.markdown("**1. Identifier — de quel type d'énoncé s'agit-il ?**")
-        st.markdown(
-            "Une règle du type « pour tous $a$, $b$ » est une affirmation "
-            "**universelle**. Deux régimes de preuve, radicalement asymétriques :\n\n"
-            "- pour la **réfuter** : un seul contre-exemple suffit ;\n"
-            "- pour la **prouver** : aucun nombre d'exemples ne suffit, "
-            "il faut une démonstration générale."
-        )
-    with st.container(border=True):
-        st.markdown("**2. Calculer — tester les valeurs les plus simples**")
-        st.markdown(
-            "Commencez par $a = b = 1$, puis $a = 1, b = 2$. "
-            "Évitez $0$ (souvent hors domaine) et méfiez-vous des cas trop "
-            "symétriques, qui peuvent coïncider par accident."
-        )
-    with st.container(border=True):
-        st.markdown("**3. Vérifier — le verdict sur cette règle**")
-        st.markdown(regle["explication"])
-    with st.container(border=True):
-        st.markdown("**4. Interpréter — ce que cela vous coûte à l'examen**")
-        st.markdown(
-            "Ces erreurs ne sont pas des étourderies : elles reviennent parce "
-            "qu'on suppose implicitement que toute opération « se distribue ». "
-            "Le réflexe à installer est de **tester avant d'écrire**, en cinq "
-            "secondes, dès qu'une règle vous paraît trop commode."
-        )
-
-
 # ==========================================================================
 # MISE EN PAGE
 # ==========================================================================
@@ -1464,7 +1331,7 @@ with onglets[5]:
 
 with onglets[6]:
     st.subheader("Réfuter une règle par un contre-exemple")
-    famille_contre_exemple()
+    executer_vrai_faux("p1_regle", REGLES)
 
 st.markdown("---")
 st.caption(

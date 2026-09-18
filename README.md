@@ -1,6 +1,6 @@
 # 📐 Mathématiques Appliquées - Sciences Po Training App
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://sciencespo-ma-training.streamlit.app/)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://sciencespo-maths-training.streamlit.app/)
 
 This is an interactive educational platform built with **Python** and **Streamlit** to help Sciences Po students master the mathematical tools used in the social sciences. Its companion course is *Mathématiques appliquées pour les sciences humaines et sociales*, taught in two modules: a pre-term module (6 sessions) and a semester module (11 sessions).
 
@@ -28,36 +28,46 @@ For each exercise, the values obtained through classic mistakes are computed in 
 ### 🧮 Symbolic Answers
 Algebraic answers are checked with **SymPy**, so all equivalent forms are accepted: `5x/6`, `x*5/6` and `(5/6)x` are treated as the same expression.
 
-### 📚 Curriculum Covered (Work in Progress)
+### 📚 Curriculum Covered
+
+All 17 sessions are live. Each series holds 4 to 7 randomised exercise families.
 
 **Pre-term module**
 
-* **P1 | Fractions and Powers:** ✅ Available
-    * *Orders of magnitude:* Scientific notation, dividing large quantities, plausibility checks.
-    * *Nested fractions:* Taking a share of a share (multiply, never add).
-    * *Algebraic fractions:* Common denominators, division by a fraction, the `1/(a+b)` trap.
-    * *Powers:* Product, quotient, power of a power, negative exponents.
-    * *Square roots:* Products under the root, perfect squares.
-    * *Compound interest:* Multiplicative coefficient raised to a power, versus simple interest.
-    * *True or false?* Students must refute a false rule with a **counterexample**, which the app tests numerically.
-* **P2 | Expanding and Factoring:** Remarkable identities, factorisation.
-* **P3 | Proportions and Percentages:** Shares, rates, percentage points.
-* **P4 | Variations and Coefficients:** Multiplicative coefficient, chained changes.
-* **P5 | Equations and Inequalities:** Solving, reversal of the inequality sign.
-* **P6 | Lines and Slopes:** Affine functions, graphical reading.
+* **P1 | Fractions and Powers** — scientific notation, nested fractions, algebraic
+  fractions, powers, roots, compound interest, refuting a rule by counterexample.
+* **P2 | Expanding and Factoring** — distributivity, remarkable identities, difference
+  of squares, common factor, threshold between two schemes.
+* **P3 | Proportions and Percentages** — share to percentage, applying a rate, points
+  versus relative variation, recovering a total, completing a breakdown.
+* **P4 | Equations and Inequalities** — first-degree equations, fractions, the bound
+  and the direction of an inequality treated separately, modelling from a statement.
+* **P5 | Variations and Multiplicative Coefficients** — rate to coefficient, chained
+  changes, reciprocal change, rate of variation, repeated growth.
+* **P6 | Lines and Slopes** — slope from two points, intercept, prediction,
+  intersection, interpreting the slope.
 
 **Semester module**
 
-* **S1 | Functions and Graphical Reading**
-* **S2 | Rate of Change**
-* **S3 | Differentiation**
-* **S4 | Derivatives and Variations**
-* **S5 | Limits and Asymptotes**
-* **S6 | Convexity and Inflection Points**
-* **S7 | Logarithm and Exponential**
-* **S8-S9 | Optimisation**
-* **S10 | Sequences**
-* **S11 | Elasticity and Trade-offs**
+* **S1 | Functions** — image, antecedent, forbidden values, average cost.
+* **S2 | Rate of Change** — average rate, interpretation, the step $h$, the limit.
+* **S3 | Differentiation** — polynomials, derivative number, tangent, product rule.
+* **S4 | Derivatives and Variations** — critical points, sign of $f'$, extremum value,
+  vanishing derivative without extremum.
+* **S5 | Limits and Asymptotes** — quotients at infinity, average-cost floor, vertical
+  asymptotes, comparative growth.
+* **S6 | Convexity** — second derivative, inflection point, curvature, slowing versus
+  falling.
+* **S7 | Logarithm and Exponential** — log properties, unknown in the exponent,
+  derivatives, exponential versus linear.
+* **S8 | Optimisation** — optimal quantity, maximum value, minimising average cost,
+  second-order condition.
+* **S9 | Sequences** — arithmetic, geometric, identifying the type, crossing a
+  threshold.
+* **S10 | Elasticity** — power functions, price elasticity, elastic versus rigid
+  demand, returns to scale.
+* **S11 | Two Variables and Lagrangian** — partial derivatives, marginal productivity,
+  constrained optimisation, the multiplier. *Not examinable in the final exam.*
 
 ## 💻 Usage
 
@@ -92,7 +102,9 @@ To run this app locally on your machine:
 Accueil.py                                  main script (home page)
 moteur.py                                   shared engine: grading + rendering
 pages/
-    01___P1_Fractions_et_puissances.py      session series
+    01___P1_Fractions_et_puissances.py      one file per session series
+    …                                       (17 files, P1-P6 then S1-S11)
+    17___S11_Deux_variables.py
 requirements.txt
 ```
 

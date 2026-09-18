@@ -54,7 +54,9 @@ class Exercice:
     enonce: str
     reponse: Any
     etapes: List[Etape]
-    type_reponse: str = "num"  # "num" | "sym"
+    type_reponse: str = "num"  # "num" | "sym" | "qcm"
+    forme: str = ""  # "factorisee" : exige une réponse effectivement factorisée
+    options: List[str] = field(default_factory=list)  # pour les QCM
     libelle: str = "Votre réponse"
     unite: str = ""
     tolerance: float = 0.005  # tolérance RELATIVE
@@ -104,6 +106,11 @@ def parser(texte: str, symboles: List[str]):
         return None
 
 
+def _est_factorisee(expr) -> bool:
+    """Une expression factorisée est un produit ou une puissance au niveau le plus haut."""
+    return bool(expr.is_Mul or expr.is_Pow)
+
+
 def analyser_symbolique(ex: Exercice, texte: str) -> Tuple[Optional[bool], str]:
     """Renvoie (juste, diagnostic). `juste = None` si la saisie est illisible."""
     expr = parser(texte, ex.symboles)
@@ -111,11 +118,21 @@ def analyser_symbolique(ex: Exercice, texte: str) -> Tuple[Optional[bool], str]:
         return None, ""
     try:
         if sp.simplify(sp.together(expr - ex.reponse)) == 0:
+            if ex.forme == "factorisee" and not _est_factorisee(expr):
+                return False, (
+                    "Votre expression est **mathématiquement juste**, mais elle n'est "
+                    "pas **factorisée** : elle est encore écrite comme une somme. "
+                    "Factoriser, c'est écrire l'expression sous forme de **produit**."
+                )
             return True, ""
     except Exception:
         return None, ""
     for expr_piege, message in ex.pieges:
         try:
+            # Garde-fou : un piège équivalent à la bonne réponse n'est jamais
+            # diagnostiqué (le test de justesse a déjà tranché au-dessus).
+            if sp.simplify(sp.together(expr_piege - ex.reponse)) == 0:
+                continue
             if sp.simplify(sp.together(expr - expr_piege)) == 0:
                 return False, message
         except Exception:
@@ -185,6 +202,14 @@ def executer(cle: str, generateur: Callable[[], Exercice]) -> None:
                 disabled=st.session_state[k_fait],
                 placeholder="Saisissez un nombre",
             )
+        elif ex.type_reponse == "qcm":
+            saisie = st.radio(
+                ex.libelle,
+                ex.options,
+                index=None,
+                key=f"{cle}_input",
+                disabled=st.session_state[k_fait],
+            )
         else:
             saisie = st.text_input(
                 ex.libelle,
@@ -219,6 +244,17 @@ def executer(cle: str, generateur: Callable[[], Exercice]) -> None:
 
     if saisie is None or (isinstance(saisie, str) and not saisie.strip()):
         st.warning("Aucune réponse saisie. La méthode complète est ci-dessous.")
+    elif ex.type_reponse == "qcm":
+        if str(saisie).strip() == str(ex.reponse).strip():
+            st.success("✅ Bonne réponse. Lisez la méthode : c'est elle qui est évaluée.")
+        else:
+            diag = ""
+            for option, message in ex.pieges:
+                if str(saisie).strip() == str(option).strip():
+                    diag = message
+            st.error(f"❌ Réponse attendue : **{ex.reponse}**")
+            if diag:
+                st.warning(f"🔍 **Diagnostic :** {diag}")
     elif ex.type_reponse == "num":
         juste, diagnostic = analyser_numerique(ex, float(saisie))
         if juste:

@@ -94,25 +94,25 @@ st.markdown("#### Module de pré-rentrée")
 
 PRE_RENTREE = [
     ("P1", "Fractions et puissances", "Nombres, fractions, puissances, racines", True),
-    ("P2", "Développer et factoriser", "Identités remarquables, factorisation", False),
-    ("P3", "Proportions et pourcentages", "Parts, taux, points de pourcentage", False),
-    ("P4", "Variations et coefficients", "Coefficient multiplicateur, évolutions", False),
-    ("P5", "Équations et inéquations", "Résolution, changement de sens", False),
-    ("P6", "Droites et pentes", "Fonction affine, lecture graphique", False),
+    ("P2", "Développer et factoriser", "Identités remarquables, factorisation", True),
+    ("P3", "Proportions et pourcentages", "Parts, taux, points de pourcentage", True),
+    ("P4", "Équations et inéquations", "Résolution, seuils, changement de sens", True),
+    ("P5", "Variations et coefficients", "Coefficient multiplicateur, évolutions", True),
+    ("P6", "Droites et pentes", "Fonction affine, pente, intersection", True),
 ]
 
 SEMESTRE = [
-    ("S1", "Fonctions et lectures graphiques", "Notion de fonction, domaine, image", False),
-    ("S2", "Taux d'accroissement", "Variation moyenne, sécante", False),
-    ("S3", "Dérivation", "Nombre dérivé, tangente, règles de calcul", False),
-    ("S4", "Dérivées et variations", "Signe de la dérivée, tableau de variations", False),
-    ("S5", "Limites et asymptotes", "Comportement aux bornes", False),
-    ("S6", "Convexité et point d'inflexion", "Dérivée seconde", False),
-    ("S7", "Logarithme et exponentielle", "Propriétés, croissance, dette", False),
-    ("S8", "Optimisation (1)", "Recherche d'extremum, conditions", False),
-    ("S9", "Optimisation (2)", "Étude complète appliquée", False),
-    ("S10", "Suites et récurrence", "Suites arithmétiques et géométriques", False),
-    ("S11", "Élasticité et arbitrages", "Dérivée logarithmique, arbitrage", False),
+    ("S1", "Fonctions et lectures", "Image, antécédent, domaine, coût moyen", True),
+    ("S2", "Taux d'accroissement", "Variation moyenne, sécante, passage à la limite", True),
+    ("S3", "Dérivation", "Nombre dérivé, tangente, règles de calcul", True),
+    ("S4", "Dérivées et variations", "Signe de la dérivée, extremum", True),
+    ("S5", "Limites et asymptotes", "Comportement aux bornes, croissance comparée", True),
+    ("S6", "Convexité et inflexion", "Dérivée seconde, courbure, ralentissement", True),
+    ("S7", "Logarithme et exponentielle", "Propriétés, inconnue en exposant, dette", True),
+    ("S8", "Optimisation", "Maximiser un profit, minimiser un coût moyen", True),
+    ("S9", "Suites", "Arithmétiques, géométriques, franchissement de seuil", True),
+    ("S10", "Élasticité et rendements", "Élasticité-prix, rendements d'échelle", True),
+    ("S11", "Deux variables et Lagrangien", "Dérivées partielles, optimisation sous contrainte", True),
 ]
 
 
