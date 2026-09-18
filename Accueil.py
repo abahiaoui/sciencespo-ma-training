@@ -93,26 +93,26 @@ st.header("Les séries d'exercices")
 st.markdown("#### Module de pré-rentrée")
 
 PRE_RENTREE = [
-    ("P1", "Fractions et puissances", "Nombres, fractions, puissances, racines", True),
-    ("P2", "Développer et factoriser", "Identités remarquables, factorisation", True),
-    ("P3", "Proportions et pourcentages", "Parts, taux, points de pourcentage", True),
-    ("P4", "Équations et inéquations", "Résolution, seuils, changement de sens", True),
-    ("P5", "Variations et coefficients", "Coefficient multiplicateur, évolutions", True),
-    ("P6", "Droites et pentes", "Fonction affine, pente, intersection", True),
+    ("P1", "Nombres, fractions et puissances", "Notation scientifique, fractions, puissances, racines", True),
+    ("P2", "Développer et factoriser", "Identités remarquables, facteur commun", True),
+    ("P3", "Équations à une variable", "Premier degré, produit nul, isoler une variable", True),
+    ("P4", "Inéquations et systèmes", "Sens de l'inégalité, systèmes 2×2", True),
+    ("P5", "Pourcentages, indices et évolutions", "Coefficient multiplicateur, indices base 100", True),
+    ("P6", "Fonctions et fonctions affines", "Image, antécédent, pente, offre et demande", True),
 ]
 
 SEMESTRE = [
-    ("S1", "Fonctions et lectures", "Image, antécédent, domaine, coût moyen", True),
-    ("S2", "Taux d'accroissement", "Variation moyenne, sécante, passage à la limite", True),
-    ("S3", "Dérivation", "Nombre dérivé, tangente, règles de calcul", True),
-    ("S4", "Dérivées et variations", "Signe de la dérivée, extremum", True),
-    ("S5", "Limites et asymptotes", "Comportement aux bornes, croissance comparée", True),
-    ("S6", "Convexité et inflexion", "Dérivée seconde, courbure, ralentissement", True),
-    ("S7", "Logarithme et exponentielle", "Propriétés, inconnue en exposant, dette", True),
-    ("S8", "Optimisation", "Maximiser un profit, minimiser un coût moyen", True),
-    ("S9", "Suites", "Arithmétiques, géométriques, franchissement de seuil", True),
-    ("S10", "Élasticité et rendements", "Élasticité-prix, rendements d'échelle", True),
-    ("S11", "Deux variables et Lagrangien", "Dérivées partielles, optimisation sous contrainte", True),
+    ("S1", "Reprise : fonctions affines, offre et demande", "Équilibre, déplacements, signe d'un produit", True),
+    ("S2", "Les suites : généralités", "Récurrence, forme explicite, variations", True),
+    ("S3", "Suites arithmétiques et géométriques", "Termes, raisons, sommes", True),
+    ("S4", "Le second degré : parabole et forme factorisée", "Orientation, racines, sommet", True),
+    ("S5", "Discriminant et signe du trinôme", "Δ, racines, inéquation du second degré", True),
+    ("S6", "La fonction exponentielle", "Propriétés, du discret au continu", True),
+    ("S7", "Le logarithme népérien", "Inconnue en exposant, temps de doublement", True),
+    ("S8", "La dérivation : point de vue local", "Taux d'accroissement, nombre dérivé, tangente", True),
+    ("S9", "La fonction dérivée et les variations", "Règles de calcul, tableau de variations", True),
+    ("S10", "Dérivée seconde, convexité et optimisation", "Courbure, premier et second ordre", True),
+    ("S11", "Plusieurs variables et optimisation sous contrainte", "Dérivées partielles, Lagrangien", True),
 ]
 
 
@@ -133,8 +133,31 @@ st.markdown("#### Module de semestre")
 afficher_series(SEMESTRE)
 
 st.caption(
-    "Les séries sont mises en ligne au fur et à mesure, après la séance "
-    "correspondante. Utilisez le menu de gauche pour y accéder."
+    "Une série par séance, accessible depuis le menu de gauche. Les énoncés sont "
+    "tirés au hasard : revenez-y autant de fois que nécessaire."
+)
+
+st.markdown("---")
+
+st.header("Les fils rouges")
+
+st.markdown(
+    """
+Chaque groupe de séances suit une situation concrète, reprise d'une séance à l'autre
+jusqu'à sa résolution complète. Les exercices de la plateforme s'appuient sur les
+mêmes situations que les slides.
+
+| | Fil rouge | Séances |
+|---|---|---|
+| **A** | Le budget de Villeneuve | P1 – P2 |
+| **B** | Vélocité, le service de vélos | P3 – P4 |
+| **C** | Le logement étudiant | P5 – P6 |
+| **D** | Mélodia, plateforme de streaming | S1 – S3 |
+| **E** | Le festival de Villeneuve | S4 – S5 |
+| **F** | La dette de Villeneuve | S6 – S7 |
+| **G** | L'atelier municipal de réparation | S8 – S10 |
+| **H** | L'arbitrage budgétaire | S11 |
+"""
 )
 
 st.markdown("---")

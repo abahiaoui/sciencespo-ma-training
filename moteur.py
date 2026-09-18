@@ -18,6 +18,8 @@ diagnostic de l'erreur est affiché en premier.
 Convention des étapes : Identifier → Calculer → Vérifier → Interpréter.
 """
 
+import random
+
 from dataclasses import dataclass, field
 from typing import Any, Callable, List, Optional, Tuple
 
@@ -287,3 +289,151 @@ def executer(cle: str, generateur: Callable[[], Exercice]) -> None:
 
     st.markdown("")
     afficher_methode(ex)
+
+
+# --------------------------------------------------------------------------
+# Famille « vrai ou faux + contre-exemple »
+# --------------------------------------------------------------------------
+
+
+def executer_vrai_faux(cle: str, regles: List[dict]) -> None:
+    """Cycle complet d'un item « cette règle est-elle vraie ? ».
+
+    `regles` est une liste de dictionnaires comportant les clés :
+      - latex        : l'égalité à juger, en LaTeX ;
+      - vraie        : True si la règle est valable pour tous les nombres ;
+      - gauche/droite: deux fonctions (a, b) -> float évaluant chaque membre ;
+      - explication  : le verdict argumenté, affiché dans la correction.
+
+    Quand la règle est fausse, l'étudiant doit produire un contre-exemple :
+    la plateforme évalue les deux membres sur ses valeurs et confirme — ou non
+    — que la règle est bien mise en défaut.
+    """
+    k_regle, k_fait = f"{cle}_r", f"{cle}_fait"
+
+    if k_regle not in st.session_state:
+        st.session_state[k_regle] = random.choice(regles)
+        st.session_state[k_fait] = False
+
+    regle = st.session_state[k_regle]
+
+    st.markdown(
+        "> La règle suivante est-elle **vraie pour tous les nombres**, "
+        "ou **fausse** ?\n>\n"
+        f"> $$ {regle['latex']} $$\n>\n"
+        "> Si vous la jugez fausse, il ne suffit pas de le dire : "
+        "**produisez un contre-exemple**, c'est-à-dire deux nombres qui la "
+        "mettent en défaut."
+    )
+
+    colonne_gauche, colonne_droite = st.columns([1, 1])
+
+    with colonne_gauche:
+        st.radio(
+            "Cette règle est :",
+            ["Vraie pour tous les nombres", "Fausse"],
+            index=None,
+            key=f"{cle}_verdict",
+            disabled=st.session_state[k_fait],
+        )
+    with colonne_droite:
+        st.caption("Si vous répondez « Fausse », proposez un contre-exemple :")
+        st.number_input(
+            "a =", value=1.0, step=1.0, key=f"{cle}_a",
+            disabled=st.session_state[k_fait],
+        )
+        st.number_input(
+            "b =", value=1.0, step=1.0, key=f"{cle}_b",
+            disabled=st.session_state[k_fait],
+        )
+
+    if not st.session_state[k_fait]:
+        if st.button("✅ Valider", key=f"{cle}_valider", type="primary"):
+            st.session_state[k_fait] = True
+            st.rerun()
+        return
+
+    if st.button("🔄 Nouvelle règle", key=f"{cle}_nouveau"):
+        for k in [c for c in st.session_state.keys() if c.startswith(cle)]:
+            st.session_state.pop(k, None)
+        st.rerun()
+
+    st.markdown("---")
+
+    verdict = st.session_state.get(f"{cle}_verdict")
+    val_a = st.session_state.get(f"{cle}_a", 1.0)
+    val_b = st.session_state.get(f"{cle}_b", 1.0)
+    dit_vraie = verdict == "Vraie pour tous les nombres"
+
+    if verdict is None:
+        st.warning("Aucun verdict donné. Voici la correction.")
+    elif dit_vraie == regle["vraie"]:
+        st.success(
+            "✅ Verdict correct : cette règle est bien "
+            f"**{'vraie' if regle['vraie'] else 'fausse'}**."
+        )
+    else:
+        st.error(
+            "❌ Verdict incorrect : cette règle est en réalité "
+            f"**{'vraie' if regle['vraie'] else 'fausse'}**."
+        )
+
+    # Test du contre-exemple proposé
+    if not regle["vraie"] and verdict == "Fausse":
+        st.markdown("#### 🔬 Test de votre contre-exemple")
+        try:
+            g = regle["gauche"](val_a, val_b)
+            d = regle["droite"](val_a, val_b)
+            colonne_1, colonne_2 = st.columns(2)
+            colonne_1.metric("Membre de gauche", f"{g:.4f}")
+            colonne_2.metric("Membre de droite", f"{d:.4f}")
+            if abs(g - d) > 1e-9:
+                st.success(
+                    f"✅ Contre-exemple **valide** : avec a = {val_a:g} et "
+                    f"b = {val_b:g}, les deux membres diffèrent. Une seule "
+                    "valeur suffit à démolir une règle prétendument générale — "
+                    "c'est la méthode qu'il faut retenir."
+                )
+            else:
+                st.warning(
+                    "⚠️ Avec ces valeurs, les deux membres coïncident : ce n'est "
+                    "donc **pas** un contre-exemple, même si la règle est fausse. "
+                    "Essayez d'autres nombres — évitez 0, et méfiez-vous des cas "
+                    "trop symétriques."
+                )
+        except (ZeroDivisionError, ValueError, TypeError):
+            st.warning(
+                "⚠️ Ces valeurs rendent l'expression indéfinie (division par zéro "
+                "ou racine d'un négatif). Un contre-exemple doit rester **dans le "
+                "domaine de validité**, sinon il ne prouve rien."
+            )
+
+    st.markdown("")
+    st.markdown("#### 🧭 La méthode, étape par étape")
+    for titre, contenu in [
+        (
+            "Identifier — de quel type d'énoncé s'agit-il ?",
+            "Une règle du type « pour tous $a$, $b$ » est une affirmation "
+            "**universelle**. Deux régimes de preuve, radicalement asymétriques :\n\n"
+            "- pour la **réfuter** : un seul contre-exemple suffit ;\n"
+            "- pour la **prouver** : aucun nombre d'exemples ne suffit, il faut "
+            "une démonstration générale.",
+        ),
+        (
+            "Calculer — tester les valeurs les plus simples",
+            "Commencez par $a = b = 1$, puis $a = 1, b = 2$. Évitez $0$ (souvent "
+            "hors domaine) et méfiez-vous des cas trop symétriques, qui peuvent "
+            "coïncider par accident.",
+        ),
+        ("Vérifier — le verdict sur cette règle", regle["explication"]),
+        (
+            "Interpréter — ce que cela vous coûte à l'examen",
+            "Ces erreurs ne sont pas des étourderies : elles reviennent parce "
+            "qu'on suppose implicitement que toute opération « se distribue ». "
+            "Le réflexe à installer est de **tester avant d'écrire**, en cinq "
+            "secondes, dès qu'une règle paraît trop commode.",
+        ),
+    ]:
+        with st.container(border=True):
+            st.markdown(f"**{titre}**")
+            st.markdown(contenu)

@@ -30,44 +30,45 @@ Algebraic answers are checked with **SymPy**, so all equivalent forms are accept
 
 ### 📚 Curriculum Covered
 
-All 17 sessions are live. Each series holds 4 to 7 randomised exercise families.
+All 17 sessions are live, each with 4 to 7 randomised exercise families. The exercises
+follow the lecture decks session by session, and reuse the course's *fils rouges*.
 
 **Pre-term module**
 
-* **P1 | Fractions and Powers** — scientific notation, nested fractions, algebraic
-  fractions, powers, roots, compound interest, refuting a rule by counterexample.
-* **P2 | Expanding and Factoring** — distributivity, remarkable identities, difference
-  of squares, common factor, threshold between two schemes.
-* **P3 | Proportions and Percentages** — share to percentage, applying a rate, points
-  versus relative variation, recovering a total, completing a breakdown.
-* **P4 | Equations and Inequalities** — first-degree equations, fractions, the bound
-  and the direction of an inequality treated separately, modelling from a statement.
-* **P5 | Variations and Multiplicative Coefficients** — rate to coefficient, chained
-  changes, reciprocal change, rate of variation, repeated growth.
-* **P6 | Lines and Slopes** — slope from two points, intercept, prediction,
-  intersection, interpreting the slope.
+* **P1 | Numbers, fractions and powers** — scientific notation, nested fractions,
+  algebraic fractions, powers, roots, counterexamples. *(Fil rouge A: Villeneuve's budget)*
+* **P2 | Expanding and factoring** — distributivity, remarkable identities, difference
+  of squares, common factor. *(Fil rouge A)*
+* **P3 | Equations in one variable** — first degree, zero-product equations, isolating
+  a variable. *(Fil rouge B: Vélocité bike scheme)*
+* **P4 | Inequalities and systems** — the bound and the direction treated separately,
+  2×2 systems. *(Fil rouge B, closing)*
+* **P5 | Percentages, indices and changes** — multiplicative coefficient, chained and
+  reciprocal changes, base-100 indices. *(Fil rouge C: student housing)*
+* **P6 | Functions and affine functions** — image vs antecedent, slope, supply-demand
+  equilibrium, sign of a product. *(Fil rouge C, closing)*
 
 **Semester module**
 
-* **S1 | Functions** — image, antecedent, forbidden values, average cost.
-* **S2 | Rate of Change** — average rate, interpretation, the step $h$, the limit.
-* **S3 | Differentiation** — polynomials, derivative number, tangent, product rule.
-* **S4 | Derivatives and Variations** — critical points, sign of $f'$, extremum value,
-  vanishing derivative without extremum.
-* **S5 | Limits and Asymptotes** — quotients at infinity, average-cost floor, vertical
-  asymptotes, comparative growth.
-* **S6 | Convexity** — second derivative, inflection point, curvature, slowing versus
-  falling.
-* **S7 | Logarithm and Exponential** — log properties, unknown in the exponent,
-  derivatives, exponential versus linear.
-* **S8 | Optimisation** — optimal quantity, maximum value, minimising average cost,
-  second-order condition.
-* **S9 | Sequences** — arithmetic, geometric, identifying the type, crossing a
-  threshold.
-* **S10 | Elasticity** — power functions, price elasticity, elastic versus rigid
-  demand, returns to scale.
-* **S11 | Two Variables and Lagrangian** — partial derivatives, marginal productivity,
-  constrained optimisation, the multiplier. *Not examinable in the final exam.*
+* **S1 | Affine functions, supply and demand** — equilibrium, reading both slopes,
+  moving *along* vs *shifting* the curve, sign of a product. *(Fil rouge D: Mélodia)*
+* **S2 | Sequences: general concepts** — recurrence, explicit form, variations, notation.
+* **S3 | Arithmetic and geometric sequences** — terms, identifying the type, sums.
+* **S4 | Quadratics: parabola and factored form** — orientation, roots, vertex.
+  *(Fil rouge E: Villeneuve festival)*
+* **S5 | Discriminant and sign of a quadratic** — Δ, roots, quadratic inequalities.
+  *(Fil rouge E, closing)*
+* **S6 | The exponential function** — properties, discrete to continuous, why intuition
+  fails. *(Fil rouge F: Villeneuve's debt)*
+* **S7 | The natural logarithm** — unknown in the exponent, doubling time, average
+  annual growth rate. *(Fil rouge F, closing)*
+* **S8 | Differentiation: the local view** — rate of change, derivative number,
+  tangent, marginal cost. *(Fil rouge G: municipal repair workshop)*
+* **S9 | The derivative function and variations** — rules, sign of f′, variation table.
+* **S10 | Second derivative, convexity and optimisation** — curvature, first- and
+  second-order conditions. *(Fil rouge G, closing)*
+* **S11 | Several variables and constrained optimisation** — partial derivatives,
+  Lagrangian, the multiplier. *(Fil rouge H)* — *not examinable in the final exam.*
 
 ## 💻 Usage
 
@@ -104,7 +105,7 @@ moteur.py                                   shared engine: grading + rendering
 pages/
     01___P1_Fractions_et_puissances.py      one file per session series
     …                                       (17 files, P1-P6 then S1-S11)
-    17___S11_Deux_variables.py
+    17___S11_Optimisation_sous_contrainte.py
 requirements.txt
 ```
 
