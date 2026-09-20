@@ -8,6 +8,7 @@ import random
 import streamlit as st
 import sympy as sp
 
+from contextes import a_contracte, latex_nombre as L
 from moteur import Etape, Exercice, executer
 
 st.set_page_config(page_title="S11 | Deux variables", page_icon="🧭", layout="wide")
@@ -60,47 +61,87 @@ with st.sidebar:
 
 
 def _fr(v, n=2):
-    return f"{v:,.{n}f}".replace(",", "\u202f").replace(".", ",")
+    return f"{v:,.2f}".replace(",", "\u202f").replace(".", ",") if n == 2 else (
+        f"{v:,.{n}f}".replace(",", "\u202f").replace(".", ",")
+    )
+
+
+def _maj(texte: str) -> str:
+    return texte[:1].upper() + texte[1:]
+
+
+#: Les deux leviers d'un arbitrage, et le nom de l'objectif. Changer de couple
+#: oblige à relire l'énoncé plutôt qu'à reconnaître un gabarit.
+ARBITRAGES = [
+    ("Q", "x", "y", "les infrastructures", "le personnel", "la qualité du service"),
+    ("Q", "K", "L", "l'équipement", "la main-d'œuvre", "la production"),
+    ("U", "x", "y", "la prévention", "les soins", "le bénéfice sanitaire"),
+    ("S", "a", "b", "les acquisitions", "les animations", "le service rendu"),
+]
 
 
 # --- 1. Dérivée partielle ---------------------------------------------------
 
 
 def gen_partielle() -> Exercice:
+    nom, v1, v2, _, _, _ = random.choice(ARBITRAGES)
+    s1, s2 = sp.Symbol(v1), sp.Symbol(v2)
+    variable = random.choice([v1, v2])
+    autre = v2 if variable == v1 else v1
+    cible = s1 if variable == v1 else s2
+    forme = random.choice(["croisee", "separee", "cobb"])
     a = random.choice([2, 3, 4])
     b = random.choice([1, 2, 5])
     c = random.choice([1, 2, 3])
-    variable = random.choice(["x", "y"])
-    f = a * x**2 * y + b * x * y**2 + c * y
-    reponse = sp.expand(sp.diff(f, x if variable == "x" else y))
-    autre = "y" if variable == "x" else "x"
+
+    if forme == "separee":
+        f = a * s1**3 + b * s2**2 + c * s1
+        lecture = (
+            f"Ici les deux variables n'apparaissent **jamais ensemble** : les termes "
+            f"qui ne contiennent pas ${variable}$ disparaissent purement et "
+            "simplement, comme des constantes."
+        )
+    elif forme == "cobb":
+        f = a * s1**2 * s2**3
+        lecture = (
+            f"Un seul terme, mais les deux variables y figurent. En dérivant par "
+            f"rapport à ${variable}$, le facteur en ${autre}$ reste **intact** : il "
+            "joue le rôle d'un coefficient."
+        )
+    else:
+        f = a * s1**2 * s2 + b * s1 * s2**2 + c * s2
+        lecture = (
+            f"Chaque terme contient les deux variables, sauf le dernier. Dans chacun, "
+            f"tout ce qui ne contient pas ${variable}$ n'est qu'un coefficient."
+        )
+
+    reponse = sp.expand(sp.diff(f, cible))
 
     enonce = f"""
 > Soit la fonction de deux variables
 >
-> $$ f(x, y) = {sp.latex(f)} $$
+> $$ {nom}({v1}, {v2}) = {sp.latex(f)} $$
 >
-> Calculez la dérivée partielle $\\dfrac{{\\partial f}}{{\\partial {variable}}}$.
+> Calculez la dérivée partielle
+> $\\dfrac{{\\partial {nom}}}{{\\partial {variable}}}$.
 """
 
     etapes = [
         Etape(
             "Identifier — l'autre variable devient une constante",
-            f"Dériver par rapport à ${variable}$, c'est dériver **comme si ${autre}$ "
-            "était un nombre fixe. Aucune règle nouvelle : ce sont les dérivées de la "
-            "séance 9, appliquées à une seule lettre à la fois.",
+            f"Dériver par rapport à ${variable}$, c'est dériver **comme si "
+            f"${autre}$ était un nombre fixe. Aucune règle nouvelle : ce sont les "
+            "dérivées de la séance 9, appliquées à une seule lettre à la fois.",
         ),
         Etape(
             "Traiter terme par terme",
-            f"Dans chaque terme, tout ce qui ne contient pas ${variable}$ n'est qu'un "
-            f"coefficient. Un terme sans ${variable}$ du tout disparaît, comme "
-            "n'importe quelle constante.",
-            rf"\frac{{\partial f}}{{\partial {variable}}} = {sp.latex(reponse)}",
+            lecture,
+            rf"\frac{{\partial {nom}}}{{\partial {variable}}} = {sp.latex(reponse)}",
         ),
         Etape(
             "Vérifier — un test numérique",
-            f"En $(x, y) = (1, 1)$, la dérivée partielle vaut "
-            f"${float(reponse.subs({x: 1, y: 1})):.0f}$. On peut le confirmer en "
+            f"En $({v1}, {v2}) = (1, 1)$, la dérivée partielle vaut "
+            f"${L(float(reponse.subs({s1: 1, s2: 1})), 0)}$. On peut le confirmer en "
             f"faisant varier ${variable}$ de $0{{,}}001$ à partir de ce point, "
             f"${autre}$ restant fixé. ✓",
         ),
@@ -118,15 +159,19 @@ def gen_partielle() -> Exercice:
         reponse=reponse,
         etapes=etapes,
         type_reponse="sym",
-        libelle=f"∂f/∂{variable} =",
-        symboles=["x", "y"],
+        libelle=f"∂{nom}/∂{variable} =",
+        symboles=[v1, v2],
         indice=f"Traitez ${autre}$ comme un nombre, puis dérivez normalement.",
         pieges=[
-            (sp.expand(sp.diff(f, x) + sp.diff(f, y)),
-             "Vous avez dérivé par rapport aux **deux** variables et additionné. "
-             "Une dérivée partielle ne porte que sur une variable."),
-            (sp.expand(sp.diff(f, y if variable == "x" else x)),
-             f"Vous avez dérivé par rapport à ${autre}$ au lieu de ${variable}$."),
+            (
+                sp.expand(sp.diff(f, s1) + sp.diff(f, s2)),
+                "Vous avez dérivé par rapport aux **deux** variables et additionné. "
+                "Une dérivée partielle ne porte que sur une variable.",
+            ),
+            (
+                sp.expand(sp.diff(f, s2 if variable == v1 else s1)),
+                f"Vous avez dérivé par rapport à ${autre}$ au lieu de ${variable}$.",
+            ),
         ],
     )
 
@@ -135,56 +180,60 @@ def gen_partielle() -> Exercice:
 
 
 def gen_marginale() -> Exercice:
+    nom, v1, v2, levier1, levier2, objectif = random.choice(ARBITRAGES)
+    s1, s2 = sp.Symbol(v1), sp.Symbol(v2)
     alpha = random.choice([2, 3])
     beta = random.choice([1, 2])
     k = random.choice([1, 2, 5])
     x0 = random.choice([2, 3, 4])
     y0 = random.choice([2, 3, 5])
-    f = k * x**alpha * y**beta
-    fp = sp.diff(f, x)
-    reponse = float(fp.subs({x: x0, y: y0}))
+    f = k * s1**alpha * s2**beta
+    derivee = sp.diff(f, s1)
+    reponse = float(derivee.subs({s1: x0, s2: y0}))
 
     enonce = f"""
-> La qualité d'un service est modélisée par
+> On modélise {objectif} par
 >
-> $$ Q(x, y) = {sp.latex(f)} $$
+> $$ {nom}({v1}, {v2}) = {sp.latex(f)} $$
 >
-> où $x$ est la dépense d'infrastructure et $y$ la dépense de personnel
-> (en centaines de milliers d'euros).
+> où ${v1}$ est la dépense consacrée {a_contracte(levier1)} et ${v2}$ celle
+> consacrée {a_contracte(levier2)} (en centaines de milliers d'euros).
 >
-> Calculez $\\dfrac{{\\partial Q}}{{\\partial x}}({x0}, {y0})$.
+> Calculez $\\dfrac{{\\partial {nom}}}{{\\partial {v1}}}({x0}, {y0})$.
 """
 
     etapes = [
         Etape(
             "Identifier — c'est un effet marginal",
-            "La question revient à : « que gagne-t-on en qualité pour un euro "
-            "d'infrastructure de plus, à personnel inchangé ? ». "
-            "C'est bien un effet toutes choses égales par ailleurs.",
+            f"La question revient à : « que gagne-t-on pour un euro de plus consacré "
+            f"{a_contracte(levier1)}, l'autre poste restant inchangé ? ». C'est bien "
+            "toutes choses égales par ailleurs.",
         ),
         Etape(
-            "Dériver par rapport à $x$",
-            f"$y^{{{beta}}}$ joue le rôle d'un simple coefficient constant.",
-            rf"\frac{{\partial Q}}{{\partial x}} = {sp.latex(sp.expand(fp))}",
+            f"Dériver par rapport à ${v1}$",
+            f"${v2}^{{{beta}}}$ joue le rôle d'un simple coefficient constant.",
+            rf"\frac{{\partial {nom}}}{{\partial {v1}}} = "
+            rf"{sp.latex(sp.expand(derivee))}",
         ),
         Etape(
             "Substituer",
             "",
-            rf"\frac{{\partial Q}}{{\partial x}}({x0}, {y0}) = {reponse:.0f}",
+            rf"\frac{{\partial {nom}}}{{\partial {v1}}}({x0}, {y0}) = "
+            rf"{L(reponse, 0)}",
         ),
         Etape(
             "Vérifier — l'ordre de grandeur",
-            f"La qualité elle-même vaut $Q({x0}, {y0}) = "
-            f"{float(f.subs({x: x0, y: y0})):.0f}$. La dérivée partielle "
-            f"({reponse:.0f}) est du même ordre : cohérent. ✓",
+            f"L'objectif lui-même vaut ${nom}({x0}, {y0}) = "
+            f"{L(float(f.subs({s1: x0, s2: y0})), 0)}$. La dérivée partielle "
+            f"({_fr(reponse, 0)}) est du même ordre : cohérent. ✓",
         ),
         Etape(
             "Interpréter — le rapport des marginales décide de l'arbitrage",
             "Ce nombre ne dit rien seul. Ce qui compte, c'est sa comparaison avec la "
             "productivité marginale de l'**autre** levier : si un euro rapporte plus "
-            "en infrastructure qu'en personnel, il faut redéployer. "
-            "L'optimum est atteint quand les deux s'égalisent — c'est exactement ce "
-            "que formalise l'onglet suivant.",
+            "sur un levier que sur l'autre, il faut redéployer. L'optimum est atteint "
+            "quand les deux s'égalisent — c'est exactement ce que formalise l'onglet "
+            "suivant.",
         ),
     ]
 
@@ -194,13 +243,18 @@ def gen_marginale() -> Exercice:
         etapes=etapes,
         libelle="Productivité marginale",
         tolerance=1e-6,
-        indice="Dérivez par rapport à $x$ en traitant $y$ comme une constante, "
+        indice=f"Dérivez par rapport à ${v1}$ en traitant ${v2}$ comme une constante, "
         "puis remplacez.",
         pieges=[
-            (float(f.subs({x: x0, y: y0})),
-             "Vous avez calculé la **qualité**, pas sa dérivée partielle."),
-            (float(sp.diff(f, y).subs({x: x0, y: y0})),
-             "Vous avez dérivé par rapport à $y$. La question porte sur $x$."),
+            (
+                float(f.subs({s1: x0, s2: y0})),
+                "Vous avez calculé la **valeur** de l'objectif, pas sa dérivée "
+                "partielle.",
+            ),
+            (
+                float(sp.diff(f, s2).subs({s1: x0, s2: y0})),
+                f"Vous avez dérivé par rapport à ${v2}$. La question porte sur ${v1}$.",
+            ),
         ],
     )
 
@@ -209,70 +263,97 @@ def gen_marginale() -> Exercice:
 
 
 def gen_lagrangien() -> Exercice:
+    nom, v1, v2, levier1, levier2, objectif = random.choice(ARBITRAGES)
     alpha_num = random.choice([1, 2, 3])
     beta_num = random.choice([1, 2, 3])
     budget = random.choice([300_000, 400_000, 500_000, 600_000])
-    part = sp.Rational(alpha_num, alpha_num + beta_num)
-    reponse = float(part * budget)
+    prix1 = random.choice([1, 1, 2])  # un prix unitaire différent de 1 change la règle
     alpha = sp.Rational(alpha_num, alpha_num + beta_num)
     beta = 1 - alpha
+    reponse = float(alpha * budget / prix1)
+
+    if prix1 == 1:
+        contrainte = rf"{v1} + {v2} = {L(budget)}"
+        regle = (
+            "le rapport des productivités marginales égale le rapport des prix — ici "
+            "$1$, puisque les deux dépenses sont en euros"
+        )
+        resolution = (
+            rf"{v1} = {sp.latex(alpha)} \times {L(budget)} = {L(reponse, 0)}"
+            rf"\ \text{{€}}"
+        )
+        commentaire_part = (
+            f"La **part** du budget consacrée à {levier1} vaut ${sp.latex(alpha)}$, "
+            "c'est-à-dire exactement l'exposant — indépendamment du montant du budget."
+        )
+    else:
+        contrainte = rf"{prix1}\,{v1} + {v2} = {L(budget)}"
+        regle = (
+            f"le rapport des productivités marginales égale le rapport des prix, qui "
+            f"vaut ici ${prix1}$ : une unité du premier levier coûte ${prix1}$ fois "
+            "plus cher"
+        )
+        resolution = (
+            rf"{prix1}\,{v1} = {sp.latex(alpha)} \times {L(budget)} "
+            rf"\quad\Longrightarrow\quad {v1} = {L(reponse, 0)}"
+        )
+        commentaire_part = (
+            f"La part du **budget** consacrée à {levier1} vaut toujours "
+            f"${sp.latex(alpha)}$, mais comme une unité coûte ${prix1}$ €, la "
+            f"**quantité** achetée est divisée d'autant. Part et quantité ne se "
+            "confondent que lorsque le prix unitaire vaut 1."
+        )
 
     enonce = f"""
-> **L'arbitrage budgétaire.** Villeneuve consacre **{budget:,} €** à sa politique de
-> mobilité, répartis entre $x$ euros d'**infrastructures** et $y$ euros de
-> **personnel**.
+> **L'arbitrage budgétaire.** Une collectivité consacre **{_fr(budget, 0)} €** à une
+> politique publique, répartis entre ${v1}$ unités de {levier1} et ${v2}$ unités de
+> {levier2}.
 >
-> La qualité du service est estimée par
+> On estime {objectif} par
 >
-> $$ Q(x, y) = x^{{{sp.latex(alpha)}}}\\,y^{{{sp.latex(beta)}}}
->    \\qquad \\text{{sous la contrainte}} \\qquad x + y = {budget:,} $$
+> $$ {nom}({v1}, {v2}) = {v1}^{{{sp.latex(alpha)}}}\\,{v2}^{{{sp.latex(beta)}}}
+>    \\qquad \\text{{sous la contrainte}} \\qquad {contrainte} $$
 >
-> Quelle somme faut-il consacrer aux **infrastructures** à l'optimum ?
-""".replace(",", "\u202f")
+> Quelle valeur de ${v1}$ faut-il retenir à l'optimum ?
+"""
 
     etapes = [
         Etape(
             "Identifier — sans contrainte, le problème n'a pas de solution",
-            "On augmenterait indéfiniment $x$ et $y$. C'est le budget qui rend la "
-            "question intéressante : chaque euro d'infrastructure se paie en un euro "
-            "de personnel en moins. Le Lagrangien sert à intégrer cette contrainte "
+            f"On augmenterait indéfiniment ${v1}$ et ${v2}$. C'est le budget qui rend "
+            "la question intéressante : chaque euro consacré à un levier se paie en un "
+            "euro de moins sur l'autre. Le Lagrangien sert à intégrer cette contrainte "
             "au calcul plutôt qu'à la traiter à part.",
-            rf"\mathcal{{L}} = x^{{{sp.latex(alpha)}}}y^{{{sp.latex(beta)}}} "
-            rf"- \lambda\,(x + y - {budget})",
+            rf"\mathcal{{L}} = {v1}^{{{sp.latex(alpha)}}}{v2}^{{{sp.latex(beta)}}} "
+            rf"- \lambda\,\big({contrainte.replace('=', '-')}\big)",
         ),
         Etape(
             "Écrire les conditions du premier ordre",
-            "On annule les trois dérivées partielles. Les deux premières, mises en "
-            "rapport, éliminent $\\lambda$ et laissent la règle d'arbitrage : le "
-            "rapport des productivités marginales égale le rapport des prix — ici 1, "
-            "puisque les deux dépenses sont en euros.",
-            rf"\frac{{\partial \mathcal{{L}}}}{{\partial x}} = 0 \ ,\quad "
-            rf"\frac{{\partial \mathcal{{L}}}}{{\partial y}} = 0 "
-            rf"\quad\Longrightarrow\quad \frac{{{sp.latex(alpha)}\,y}}"
-            rf"{{{sp.latex(beta)}\,x}} = 1",
+            f"On annule les trois dérivées partielles. Les deux premières, mises en "
+            f"rapport, éliminent $\\lambda$ et laissent la règle d'arbitrage : {regle}.",
+            rf"\frac{{\partial \mathcal{{L}}}}{{\partial {v1}}} = 0 \ ,\quad "
+            rf"\frac{{\partial \mathcal{{L}}}}{{\partial {v2}}} = 0 "
+            rf"\quad\Longrightarrow\quad \frac{{{sp.latex(alpha)}\,{v2}}}"
+            rf"{{{sp.latex(beta)}\,{v1}}} = {prix1}",
         ),
         Etape(
             "Résoudre avec la contrainte",
             "La troisième condition redonne simplement la contrainte budgétaire. "
-            "En y reportant la relation précédente, on obtient la part consacrée "
-            "à $x$.",
-            rf"x = {sp.latex(alpha)} \times {budget} = {reponse:.0f}\ \text{{€}}",
+            "En y reportant la relation précédente, on obtient la solution.",
+            resolution,
         ),
         Etape(
             "Vérifier — la contrainte est-elle saturée ?",
-            f"Il reste ${budget - reponse:,.0f}$ € pour le personnel, et la somme "
-            f"fait bien {budget:,} €. ✓ À l'optimum, la contrainte est **toujours** "
-            "saturée : laisser de l'argent inutilisé ne peut pas être optimal."
-            .replace(",", "\u202f"),
+            f"Il reste {_fr(budget - prix1 * reponse, 0)} € pour {levier2}, et le "
+            f"total fait bien {_fr(budget, 0)} €. ✓ À l'optimum, la contrainte est "
+            "**toujours** saturée : laisser de l'argent inutilisé ne peut pas être "
+            "optimal.",
         ),
         Etape(
             "Interpréter — la règle des parts constantes",
-            f"Le résultat remarquable est que la **part** du budget consacrée aux "
-            f"infrastructures vaut ${sp.latex(alpha)}$, c'est-à-dire exactement "
-            "l'exposant — indépendamment du montant du budget. "
-            "C'est la propriété caractéristique des fonctions Cobb-Douglas, et la "
-            "raison de leur succès en modélisation : elle rend les arbitrages "
-            "prévisibles et transposables d'une collectivité à l'autre.",
+            f"{commentaire_part} C'est la propriété caractéristique des fonctions "
+            "Cobb-Douglas, et la raison de leur succès en modélisation : elle rend "
+            "les arbitrages prévisibles et transposables d'une collectivité à l'autre.",
         ),
     ]
 
@@ -280,21 +361,27 @@ def gen_lagrangien() -> Exercice:
         enonce=enonce,
         reponse=reponse,
         etapes=etapes,
-        libelle="Dépense d'infrastructures",
-        unite="€",
+        libelle=f"Valeur de {v1} à l'optimum",
         tolerance=0.002,
         indice="À l'optimum, le rapport des dérivées partielles égale le rapport des "
         "prix.",
         pieges=[
-            (float(budget) / 2,
-             "Vous avez partagé le budget en deux parts égales. Ce ne serait correct "
-             "que si les deux exposants étaient identiques."),
-            (float(budget) - reponse,
-             "C'est la somme consacrée au **personnel**. L'énoncé demande les "
-             "infrastructures."),
-            (float(budget),
-             "Vous avez tout consacré aux infrastructures : la contrainte impose de "
-             "partager."),
+            (
+                float(budget) / 2,
+                "Vous avez partagé le budget en deux parts égales. Ce ne serait "
+                "correct que si les deux exposants (et les deux prix) étaient "
+                "identiques.",
+            ),
+            (
+                float(budget) - reponse,
+                f"C'est ce qui reste pour {levier2}. L'énoncé demande ${v1}$.",
+            ),
+            (
+                float(budget),
+                "Vous avez tout consacré à un seul levier : la contrainte impose de "
+                "partager, et l'exposant de l'autre levier interdit de le laisser à "
+                "zéro.",
+            ),
         ],
     )
 
@@ -303,29 +390,29 @@ def gen_lagrangien() -> Exercice:
 
 
 def gen_lambda() -> Exercice:
+    nom, v1, v2, levier1, levier2, objectif = random.choice(ARBITRAGES)
     lam = random.choice([0.4, 1.5, 2.8, 6.0])
-    budget = random.choice([300_000, 500_000])
+    budget = random.choice([300_000, 500_000, 750_000])
+    unite_objectif = random.choice(["unité(s)", "point(s)"])
 
     bonne = (
-        f"Un euro de budget supplémentaire augmenterait la qualité optimale "
-        f"d'environ {lam} unité(s)."
+        f"Un euro de budget supplémentaire augmenterait {objectif} optimal(e) "
+        f"d'environ {_fr(lam, 1)} {unite_objectif}."
     )
-    options = [
-        bonne,
-        f"La qualité optimale du service vaut {lam}.",
-        f"Il faut consacrer {lam} € aux infrastructures.",
-        f"Le budget est dépassé de {lam} €.",
-    ]
+    valeur = f"{_maj(objectif)} optimal(e) vaut {_fr(lam, 1)}."
+    decision = f"Il faut consacrer {_fr(lam, 1)} € {a_contracte(levier1)}."
+    depassement = f"Le budget est dépassé de {_fr(lam, 1)} €."
+    options = [bonne, valeur, decision, depassement]
     random.shuffle(options)
 
     enonce = f"""
-> Le problème d'arbitrage sous contrainte budgétaire de **{budget:,} €** a été
-> résolu. Le multiplicateur de Lagrange à l'optimum vaut
+> Le problème d'arbitrage sous contrainte budgétaire de **{_fr(budget, 0)} €**, entre
+> {levier1} et {levier2}, a été résolu. Le multiplicateur de Lagrange à l'optimum vaut
 >
-> $$ \\lambda = {lam} $$
+> $$ \\lambda = {L(lam)} $$
 >
 > Que signifie ce nombre ?
-""".replace(",", "\u202f")
+"""
 
     etapes = [
         Etape(
@@ -339,14 +426,14 @@ def gen_lambda() -> Exercice:
             "$\\lambda$ mesure la variation de l'objectif optimal quand on **relâche "
             "la contrainte d'une unité** : c'est la dérivée de la valeur optimale par "
             "rapport au budget.",
-            r"\lambda = \frac{\partial Q^{*}}{\partial R}",
+            rf"\lambda = \frac{{\partial {nom}^{{*}}}}{{\partial R}}",
         ),
         Etape(
             "Vérifier — l'ordre de grandeur",
-            f"Avec $\\lambda = {lam}$, passer de {budget:,} à {budget + 1:,} € "
-            f"ferait gagner environ {lam} unité(s) de qualité. Comme toute lecture "
-            "marginale, l'approximation ne vaut que pour une petite variation."
-            .replace(",", "\u202f"),
+            f"Avec $\\lambda = {L(lam)}$, passer de {_fr(budget, 0)} à "
+            f"{_fr(budget + 1, 0)} € ferait gagner environ {_fr(lam, 1)} "
+            f"{unite_objectif}. Comme toute lecture marginale, l'approximation ne "
+            "vaut que pour une petite variation.",
         ),
         Etape(
             "Interpréter — le prix implicite de la contrainte",
@@ -367,14 +454,20 @@ def gen_lambda() -> Exercice:
         libelle="Interprétation de λ",
         indice="Que gagnerait-on si la contrainte était un peu moins serrée ?",
         pieges=[
-            (f"La qualité optimale du service vaut {lam}.",
-             "$\\lambda$ n'est pas la **valeur** de l'objectif, mais sa "
-             "**sensibilité** à un relâchement de la contrainte."),
-            (f"Il faut consacrer {lam} € aux infrastructures.",
-             "$\\lambda$ n'est pas une variable de décision : les montants optimaux "
-             "sont $x$ et $y$."),
-            (f"Le budget est dépassé de {lam} €.",
-             "À l'optimum, la contrainte est exactement saturée, jamais dépassée."),
+            (
+                valeur,
+                "$\\lambda$ n'est pas la **valeur** de l'objectif, mais sa "
+                "**sensibilité** à un relâchement de la contrainte.",
+            ),
+            (
+                decision,
+                f"$\\lambda$ n'est pas une variable de décision : les montants "
+                f"optimaux sont ${v1}$ et ${v2}$.",
+            ),
+            (
+                depassement,
+                "À l'optimum, la contrainte est exactement saturée, jamais dépassée.",
+            ),
         ],
     )
 

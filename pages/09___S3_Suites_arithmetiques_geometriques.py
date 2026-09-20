@@ -1,9 +1,17 @@
-"""Série S3 — Suites arithmétiques et géométriques. Fil rouge D : Mélodia."""
+"""Série S3 — Suites arithmétiques et géométriques. Fil rouge D : Mélodia.
+
+Variation sur trois axes (cf. `contextes.py`) : le contexte, la notation
+(lettre, rang initial) et la **forme sous laquelle la suite est donnée** —
+une règle de récurrence, un taux en pourcentage, une phrase, un tableau de
+relevés, ou deux termes dont il faut d'abord déduire la raison.
+"""
 
 import random
 
 import streamlit as st
 
+import contextes as cx
+from contextes import latex_nombre as L
 from moteur import Etape, Exercice, executer
 
 st.set_page_config(page_title="S3 | Suites arithmétiques et géométriques",
@@ -27,6 +35,11 @@ que le **coefficient multiplicateur** de la pré-rentrée.
 ### 🎧 Fil rouge D — Mélodia
 Mélodia veut connaître le **nombre total** d'abonnements vendus sur sept ans, et pas
 seulement l'effectif de la dernière année.
+
+### ⚠️ La raison n'est pas toujours servie sur un plateau
+Selon les tirages, l'énoncé vous donne la raison, un taux en pourcentage, ou
+seulement **deux termes** dont il faut la déduire. Et la suite ne démarre pas
+toujours au rang $0$ : comptez les pas.
 """
     )
 
@@ -37,66 +50,123 @@ with st.sidebar:
     st.markdown("**Suite géométrique** (raison $q$)")
     st.latex(r"u_{n+1} = q\,u_n \qquad u_n = u_0 \times q^{\,n}")
     st.markdown("**Somme arithmétique — l'astuce de Gauss**")
-    st.latex(r"\sum_{k=0}^{n} u_k = (n+1) \times \frac{u_0 + u_n}{2}")
+    st.latex(r"S = (\text{nombre de termes}) \times \frac{\text{premier} + \text{dernier}}{2}")
     st.markdown("**Somme géométrique** ($q \\neq 1$)")
-    st.latex(r"\sum_{k=0}^{n} u_k = u_0 \times \frac{1 - q^{\,n+1}}{1 - q}")
+    st.latex(r"S = (\text{premier terme}) \times \frac{1 - q^{\,\text{nb termes}}}{1 - q}")
     st.info(
         "**Une suite arithmétique est une fonction affine déguisée**\n\n"
         "$u_n = u_0 + nr$ a exactement la forme $ax + b$, avec la raison "
         "dans le rôle de la pente."
     )
-
-CONTEXTES = [
-    ("les abonnements vendus par Mélodia", "abonnements"),
-    ("le nombre de places en crèche", "places"),
-    ("les dossiers traités par le service", "dossiers"),
-]
+    st.warning(
+        "**Deux termes suffisent à retrouver la raison**\n\n"
+        "Arithmétique : $r = \\dfrac{u_q - u_p}{q - p}$. "
+        "Géométrique : $q^{\\,j - i} = \\dfrac{u_j}{u_i}$."
+    )
 
 
 def _fr(v, n=2):
-    return f"{v:,.{n}f}".replace(",", "\u202f").replace(".", ",")
+    return f"{v:,.{n}f}".replace(",", " ").replace(".", ",")
+
+
+def _maj(texte: str) -> str:
+    return texte[:1].upper() + texte[1:]
 
 
 # --- 1. Terme d'une suite arithmétique -------------------------------------
 
 
 def gen_arithmetique() -> Exercice:
-    grandeur, unite = random.choice(CONTEXTES)
-    u0 = random.choice([1_200, 2_500, 4_000, 6_500])
+    ctx = cx.tirer(cx.EFFECTIFS)
+    notation = cx.tirer_notation_suite()
+    n0 = notation.depart
+    premier = random.choice([1_200, 2_500, 4_000, 6_500])
     r = random.choice([-250, -150, 300, 450, 900])
-    n = random.choice([6, 8, 10, 12, 15])
-    reponse = float(u0 + n * r)
+    rang = n0 + random.choice([6, 8, 10, 12, 15])
+    pas = rang - n0
+    reponse = float(premier + pas * r)
+    presentation = random.choice(["phrase", "recurrence", "deux_termes"])
 
-    enonce = f"""
-> {grandeur.capitalize()} valent **{u0:,} {unite}** l'année 0, et évoluent de
-> **{r:+} {unite} chaque année**, toujours du même montant.
+    if presentation == "recurrence":
+        signe = "+" if r > 0 else "-"
+        enonce = f"""
+> On modélise {ctx.sujet} par la suite définie par
 >
-> Combien en compte-t-on l'année **{n}** ?
-""".replace(",", "\u202f")
+> $$ {notation.initial} = {L(premier)} \\qquad
+>    {notation.suivant} = {notation.courant} {signe} {L(abs(r))} $$
+>
+> Calculez **${notation.terme(rang)}$**.
+"""
+        donnee_raison = (
+            f"La récurrence ajoute ${L(r)}$ à chaque pas : la raison est donnée "
+            "telle quelle."
+        )
+    elif presentation == "phrase":
+        enonce = f"""
+> {_maj(ctx.sujet)} s'élève à **{_fr(premier, 0)} {ctx.unite}** au relevé de rang
+> ${n0}$, et {cx.phrase_flux(ctx, r, periode="à chaque relevé")} — toujours du même
+> montant.
+>
+> Combien en compte-t-on au rang **{rang}** ?
+"""
+        donnee_raison = (
+            f"« Toujours du même montant » est la signature d'une suite "
+            f"**arithmétique** : la raison vaut ${L(r)}$."
+        )
+    else:
+        intermediaire = n0 + random.choice([3, 4])
+        valeur_inter = premier + (intermediaire - n0) * r
+        enonce = f"""
+> {_maj(ctx.sujet)} suit une suite **arithmétique**. On a relevé deux valeurs :
+>
+> $$ {notation.initial} = {L(premier)} \\qquad
+>    {notation.terme(intermediaire)} = {L(valeur_inter)} $$
+>
+> Calculez **${notation.terme(rang)}$**.
+"""
+        donnee_raison = (
+            f"La raison n'est pas donnée : il faut la reconstituer. Entre le rang "
+            f"${n0}$ et le rang ${intermediaire}$, il y a "
+            f"${intermediaire - n0}$ pas pour un écart total de "
+            f"${L(valeur_inter - premier)}$, d'où "
+            f"$r = \\dfrac{{{L(valeur_inter - premier)}}}{{{intermediaire - n0}}} "
+            f"= {L(r)}$."
+        )
 
     etapes = [
         Etape(
             "Identifier — arithmétique, car on ajoute toujours la même quantité",
-            f"Chaque année ajoute ${r}$, indépendamment du niveau atteint. C'est la "
-            "définition d'une suite arithmétique, et cela suffit à choisir la formule.",
+            f"Chaque pas ajoute la même quantité, indépendamment du niveau atteint. "
+            f"C'est la définition d'une suite arithmétique, et cela suffit à choisir "
+            f"la formule. {donnee_raison}",
         ),
         Etape(
-            "Appliquer $u_n = u_0 + n\\,r$",
-            f"Inutile de dérouler les {n} termes : la forme explicite donne "
-            "directement le rang cherché.",
-            rf"u_{{{n}}} = {u0} + {n} \times ({r}) = {u0} + ({n*r}) = {reponse:.0f}",
+            "Compter les pas",
+            f"Le premier terme est ${notation.initial}$, la cible est "
+            f"${notation.terme(rang)}$ : la raison s'applique **{pas} fois**"
+            + (
+                f", et non {rang} — la suite ne démarre pas au rang $0$."
+                if n0 == 1
+                else ". Comme la suite démarre au rang $0$, ce compte coïncide "
+                "avec le rang."
+            ),
+        ),
+        Etape(
+            "Appliquer la forme explicite",
+            f"Inutile de dérouler les {pas} termes intermédiaires.",
+            rf"{notation.terme(rang)} = {L(premier)} + {pas} \times ({L(r)}) "
+            rf"= {L(reponse)}",
         ),
         Etape(
             "Vérifier — le sens de l'évolution",
             f"La raison est {'positive' if r > 0 else 'négative'}, donc la suite est "
             f"{'croissante' if r > 0 else 'décroissante'} : le résultat doit être "
-            f"{'supérieur' if r > 0 else 'inférieur'} à {u0:,}. ✓"
-            .replace(",", "\u202f"),
+            f"{'supérieur' if r > 0 else 'inférieur'} à {_fr(premier, 0)}. ✓",
         ),
         Etape(
             "Interpréter — une fonction affine déguisée",
             f"Représentée en fonction de $n$, cette suite donnerait une **droite** de "
-            f"pente ${r}$ : la raison joue exactement le rôle de la pente vue en "
+            f"pente ${L(r)}$ : la raison joue exactement le rôle de la pente vue en "
             "pré-rentrée. Seule différence, les points sont isolés.",
         ),
     ]
@@ -105,17 +175,28 @@ def gen_arithmetique() -> Exercice:
         enonce=enonce,
         reponse=reponse,
         etapes=etapes,
-        libelle=f"Valeur l'année {n}",
-        unite=unite,
+        libelle=f"{notation.lettre}_{rang} =",
+        unite=ctx.unite,
         tolerance=1e-6,
-        indice=f"Combien de fois la raison s'applique-t-elle entre l'année 0 et "
-        f"l'année {n} ?",
+        indice=f"Combien de fois la raison s'applique-t-elle entre le rang {n0} et "
+        f"le rang {rang} ?",
         pieges=[
-            (float(u0 + (n - 1) * r),
-             f"Vous avez compté {n - 1} pas. La suite commençant au rang 0, il y a "
-             f"bien {n} pas jusqu'au rang {n}."),
-            (float(u0 * r),
-             "Vous avez **multiplié** par la raison : c'est la formule géométrique."),
+            (
+                float(premier + rang * r),
+                f"Vous avez compté {rang} pas. La suite démarrant au rang {n0}, "
+                f"il n'y en a que {pas}.",
+            )
+            if n0 == 1
+            else (
+                float(premier + (pas - 1) * r),
+                f"Vous avez compté {pas - 1} pas. La suite démarrant au rang 0, "
+                f"il y a bien {pas} pas jusqu'au rang {rang}.",
+            ),
+            (
+                float(premier * r),
+                "Vous avez **multiplié** par la raison : c'est la formule géométrique. "
+                "Ici on ajoute.",
+            ),
         ],
     )
 
@@ -124,53 +205,100 @@ def gen_arithmetique() -> Exercice:
 
 
 def gen_geometrique() -> Exercice:
-    grandeur, unite = random.choice(CONTEXTES)
-    u0 = random.choice([12_400, 8_000, 15_000, 20_000])
+    ctx = cx.tirer(cx.EFFECTIFS + cx.MONETAIRES)
+    notation = cx.tirer_notation_suite()
+    n0 = notation.depart
+    premier = random.choice([12_400, 8_000, 15_000, 20_000, 5_400])
     taux = random.choice([-6, -4, 5, 8, 10, 12])
-    raison = 1 + taux / 100
-    n = random.choice([5, 7, 9, 12])
-    reponse = u0 * raison**n
-    lineaire = u0 + n * (u0 * taux / 100)
+    q = 1 + taux / 100
+    rang = n0 + random.choice([5, 7, 9, 12])
+    pas = rang - n0
+    reponse = premier * q**pas
+    lineaire = premier + pas * (premier * taux / 100)
+    presentation = random.choice(["taux", "coefficient", "recurrence"])
 
-    enonce = f"""
-> {grandeur.capitalize()} valent **{u0:,} {unite}** l'année 0 et évoluent de
-> **{taux:+} % par an**, au même taux chaque année.
+    if presentation == "taux":
+        enonce = f"""
+> {_maj(ctx.sujet)} vaut **{_fr(premier, 0)} {ctx.unite}** au rang ${n0}$ et
+> {cx.phrase_taux(taux, periode="à chaque rang")}, au même taux à chaque fois.
 >
-> Combien en compte-t-on l'année **{n}** ? Arrondissez à l'unité.
-""".replace(",", "\u202f")
+> Quelle est sa valeur au rang **{rang}** ? Arrondissez à l'unité.
+"""
+        lecture = (
+            f"Un pourcentage s'applique à la valeur **courante** : passer de $100$ à "
+            f"$100 {'+' if taux > 0 else '-'} {abs(taux)}\\,\\%$ revient à multiplier "
+            f"par ${L(q)}$. C'est le coefficient multiplicateur de la pré-rentrée, "
+            "et c'est la raison de la suite."
+        )
+    elif presentation == "coefficient":
+        enonce = f"""
+> {_maj(ctx.sujet)} vaut **{_fr(premier, 0)} {ctx.unite}** au rang ${n0}$. D'un rang
+> au suivant, cette grandeur est **multipliée par ${L(q)}$**.
+>
+> Quelle est sa valeur au rang **{rang}** ? Arrondissez à l'unité.
+"""
+        lecture = (
+            f"La raison est donnée directement : $q = {L(q)}$. Elle est "
+            f"{'supérieure' if q > 1 else 'inférieure'} à $1$, donc la suite "
+            f"{'croît' if q > 1 else 'décroît'} — ce qui correspond à une évolution "
+            f"de ${taux:+}\\,\\%$ par pas."
+        )
+    else:
+        enonce = f"""
+> On modélise {ctx.sujet} par la suite définie par
+>
+> $$ {notation.initial} = {L(premier)} \\qquad
+>    {notation.suivant} = {L(q)} \\times {notation.courant} $$
+>
+> Calculez **${notation.terme(rang)}$**. Arrondissez à l'unité.
+"""
+        lecture = (
+            f"La récurrence multiplie par ${L(q)}$ à chaque pas : c'est donc une "
+            f"suite **géométrique** de raison $q = {L(q)}$, ce qui correspond à "
+            f"${taux:+}\\,\\%$ par pas."
+        )
 
     etapes = [
         Etape(
             "Identifier — la raison, c'est le coefficient multiplicateur",
-            f"Un pourcentage s'applique à la valeur **courante**, donc chaque année "
-            f"multiplie par le même nombre ${raison}$. Ce nombre est exactement le "
-            "coefficient multiplicateur de la pré-rentrée : rien de nouveau, un nom "
-            "de plus.",
+            lecture,
         ),
         Etape(
-            "Appliquer $u_n = u_0 \\times q^{\\,n}$",
+            "Compter les pas",
+            f"De ${notation.initial}$ à ${notation.terme(rang)}$, la multiplication "
+            f"est répétée **{pas} fois** : c'est cet exposant qu'il faut écrire"
+            + (
+                f", et non {rang}."
+                if n0 == 1
+                else ", identique au rang puisque la suite démarre à $0$."
+            ),
+        ),
+        Etape(
+            "Appliquer la forme explicite",
             "",
-            rf"u_{{{n}}} = {u0} \times ({raison})^{{{n}}} "
-            rf"\approx {u0} \times {raison**n:.5f} \approx {reponse:.0f}",
+            rf"{notation.terme(rang)} = {L(premier)} \times ({L(q)})^{{{pas}}} "
+            rf"\approx {L(round(reponse))}",
         ),
         Etape(
             "Vérifier — comparer au cas linéaire",
-            f"Si la variation absolue de la première année s'était répétée, on "
-            f"obtiendrait {lineaire:,.0f} {unite}. Le résultat géométrique "
-            f"({reponse:,.0f}) est "
+            f"Si la variation absolue du premier pas s'était répétée à l'identique, on "
+            f"obtiendrait {_fr(lineaire, 0)} {ctx.unite}. Le résultat géométrique "
+            f"({_fr(reponse, 0)}) est "
             f"{'supérieur' if reponse > lineaire else 'inférieur'} : "
-            + ("les hausses portent chaque année sur une base plus grande."
-               if taux > 0 else
-               "les baisses portent chaque année sur une base plus petite, donc "
-               "elles ralentissent.")
-            + " ✓".replace(",", "\u202f"),
+            + (
+                "les hausses portent chaque fois sur une base plus grande."
+                if taux > 0
+                else "les baisses portent chaque fois sur une base plus petite, donc "
+                "elles ralentissent."
+            )
+            + " ✓",
         ),
         Etape(
             "Interpréter",
-            f"Sur {n} ans, l'écart avec le raisonnement linéaire atteint déjà "
-            f"{abs(reponse - lineaire):,.0f} {unite}. C'est ce mécanisme qui rendra "
-            "les projections de long terme si sensibles au taux retenu — on le "
-            "retrouvera avec la dette en séance 6.".replace(",", "\u202f"),
+            f"Sur {pas} pas, l'écart avec le raisonnement linéaire atteint déjà "
+            f"{_fr(abs(reponse - lineaire), 0)} {ctx.unite}. C'est ce mécanisme qui "
+            "rendra les projections de long terme si sensibles au taux retenu — on le "
+            "retrouvera avec la dette en séance 6.",
         ),
     ]
 
@@ -178,16 +306,32 @@ def gen_geometrique() -> Exercice:
         enonce=enonce,
         reponse=reponse,
         etapes=etapes,
-        libelle=f"Valeur l'année {n}",
-        unite=unite,
+        libelle=f"{notation.lettre}_{rang} =",
+        unite=ctx.unite,
         tolerance=0.002,
-        indice="Le coefficient multiplicateur s'applique une fois par an.",
+        indice="Le coefficient multiplicateur s'applique une fois par pas. Combien "
+        f"y a-t-il de pas entre le rang {n0} et le rang {rang} ?",
         pieges=[
-            (float(lineaire),
-             "Vous avez répété la **même variation absolue** chaque année. Un "
-             "pourcentage porte sur la valeur courante, qui change."),
-            (float(u0 * raison),
-             "Vous n'avez appliqué le coefficient qu'une seule fois."),
+            (
+                float(lineaire),
+                "Vous avez répété la **même variation absolue** à chaque pas. Un "
+                "pourcentage porte sur la valeur courante, qui change.",
+            ),
+            (
+                float(premier * q),
+                "Vous n'avez appliqué le coefficient qu'une seule fois.",
+            ),
+            (
+                float(premier * q**rang),
+                f"L'exposant est le nombre de **pas** ({pas}), pas le rang ({rang}) : "
+                f"la suite démarre au rang {n0}.",
+            )
+            if n0 == 1
+            else (
+                float(premier * q ** (pas - 1)),
+                "Vous avez retiré un pas : la suite démarre au rang $0$, donc "
+                f"l'exposant est bien {pas}.",
+            ),
         ],
     )
 
@@ -196,20 +340,14 @@ def gen_geometrique() -> Exercice:
 
 
 def gen_reconnaitre() -> Exercice:
-    est_geometrique = random.choice([True, False])
-    u0 = random.choice([1_000, 2_000, 4_000])
-
-    if est_geometrique:
-        raison = random.choice([1.5, 2, 0.5, 1.25])
-        termes = [u0 * raison**k for k in range(4)]
-        bonne = "Géométrique : le rapport entre termes consécutifs est constant"
-    else:
-        r = random.choice([300, 600, 750, -250])
-        termes = [u0 + k * r for k in range(4)]
-        while min(termes) <= 0:
-            r = random.choice([300, 600, 750])
-            termes = [u0 + k * r for k in range(4)]
-        bonne = "Arithmétique : la différence entre termes consécutifs est constante"
+    ctx = cx.tirer(cx.EFFECTIFS)
+    notation = cx.tirer_notation_suite()
+    n0 = notation.depart
+    # Le troisième cas — « ni l'une ni l'autre » — doit sortir aussi, faute de
+    # quoi les étudiants apprennent que cette option n'est jamais la bonne.
+    type_suite = random.choice(["arithmetique", "geometrique", "ni"])
+    presentation = random.choice(["liste", "tableau", "mecanisme"])
+    base = random.choice([1_000, 2_000, 4_000])
 
     options = [
         "Arithmétique : la différence entre termes consécutifs est constante",
@@ -217,14 +355,72 @@ def gen_reconnaitre() -> Exercice:
         "Ni l'une ni l'autre",
     ]
 
-    liste = " · ".join(
-        f"$u_{k} = {t:,.0f}$".replace(",", "\u202f") for k, t in enumerate(termes)
-    )
+    if type_suite == "geometrique":
+        q = random.choice([1.5, 2, 0.5, 1.25])
+        termes = [base * q**k for k in range(4)]
+        bonne = options[1]
+        mecanisme = f"à chaque rang, la grandeur est **multipliée par {_fr(q, 2)}**"
+        verdict = (
+            f"Les rapports valent tous ${L(q)}$ : la suite est **géométrique**. "
+            "Les différences, elles, augmentent — elles ne peuvent donc pas servir "
+            "de critère ici."
+        )
+    elif type_suite == "arithmetique":
+        r = random.choice([300, 600, 750, -250])
+        termes = [base + k * r for k in range(4)]
+        while min(termes) <= 0:
+            r = random.choice([300, 600, 750])
+            termes = [base + k * r for k in range(4)]
+        bonne = options[0]
+        mecanisme = (
+            f"à chaque rang, la grandeur {'augmente' if r > 0 else 'diminue'} de "
+            f"**{_fr(abs(r), 0)} {ctx.unite}**"
+        )
+        verdict = (
+            f"Les différences valent toutes ${L(r)}$ : la suite est "
+            "**arithmétique**. Inutile d'examiner les rapports."
+        )
+    else:
+        # Croissance ni additive ni multiplicative : un mécanisme quadratique.
+        a = random.choice([50, 80, 120])
+        termes = [base + a * k * k for k in range(4)]
+        bonne = options[2]
+        mecanisme = (
+            f"au rang $n$, la grandeur vaut ${L(base)} + {L(a)}\\,n^2$ — l'ajout "
+            "annuel grossit d'année en année, sans que le rapport soit constant"
+        )
+        verdict = (
+            "Les différences ne sont pas constantes (elles augmentent) et les "
+            "rapports ne le sont pas davantage : la suite n'est **ni arithmétique "
+            "ni géométrique**. C'est le cas le plus fréquent dans la réalité — les "
+            "deux modèles du cours sont des idéalisations."
+        )
+
     diffs = [termes[k + 1] - termes[k] for k in range(3)]
     rapports = [termes[k + 1] / termes[k] for k in range(3)]
 
-    enonce = f"""
-> On relève les quatre premières valeurs d'une suite :
+    if presentation == "mecanisme":
+        enonce = f"""
+> On modélise {ctx.sujet} par une suite $({notation.courant})$ dont voici le
+> mécanisme : {mecanisme}.
+>
+> De quel type de suite s'agit-il ?
+"""
+    elif presentation == "tableau":
+        tableau = cx.tableau_suite(notation, termes)
+        enonce = f"""
+> On relève les quatre premières valeurs {ctx.du} :
+>
+{chr(10).join('> ' + ligne for ligne in tableau.splitlines())}
+>
+> De quel type de suite s'agit-il ?
+"""
+    else:
+        liste = " · ".join(
+            f"${notation.terme(n0 + k)} = {L(t)}$" for k, t in enumerate(termes)
+        )
+        enonce = f"""
+> On relève les quatre premières valeurs {ctx.du} :
 >
 > {liste}
 >
@@ -236,19 +432,30 @@ def gen_reconnaitre() -> Exercice:
             "Identifier — deux tests, dans cet ordre",
             "On calcule d'abord les **différences** entre termes consécutifs : si "
             "elles sont constantes, la suite est arithmétique. Sinon, on calcule les "
-            "**rapports** : s'ils sont constants, elle est géométrique.",
+            "**rapports** : s'ils sont constants, elle est géométrique. Si aucun des "
+            "deux tests ne passe, la suite n'est ni l'une ni l'autre — c'est une "
+            "réponse parfaitement légitime.",
+        ),
+        Etape(
+            "Produire quelques termes",
+            "Quelle que soit la forme de l'énoncé, le test porte sur des nombres : "
+            + " · ".join(
+                f"${notation.terme(n0 + k)} = {L(t)}$" for k, t in enumerate(termes)
+            ),
         ),
         Etape(
             "Test des différences",
             "Différences : "
-            + ", ".join(f"${d:,.0f}$".replace(",", "\u202f") for d in diffs)
-            + (" — non constantes." if est_geometrique else " — constantes."),
+            + ", ".join(f"${L(d)}$" for d in diffs)
+            + (" — constantes." if type_suite == "arithmetique" else " — non constantes."),
         ),
         Etape(
             "Test des rapports",
-            "Rapports : " + ", ".join(f"${r:.4g}$" for r in rapports)
-            + (" — constants." if est_geometrique else " — non constants."),
+            "Rapports : "
+            + ", ".join(f"${r:.4g}$".replace(".", "{,}") for r in rapports)
+            + (" — constants." if type_suite == "geometrique" else " — non constants."),
         ),
+        Etape("Conclure", verdict),
         Etape(
             "Interpréter — ce que chaque type implique",
             "Une suite arithmétique traduit un mécanisme **additif** : un contingent "
@@ -265,12 +472,19 @@ def gen_reconnaitre() -> Exercice:
         type_reponse="qcm",
         options=options,
         libelle="Type de suite",
-        indice="Différences d'abord, rapports ensuite.",
+        indice="Différences d'abord, rapports ensuite. Et rien n'interdit que les "
+        "deux tests échouent.",
         pieges=[
-            (o, "Refaites les deux tests : "
-                + ("les différences ne sont pas constantes ici."
-                   if est_geometrique else "les rapports ne sont pas constants ici."))
-            for o in options if o != bonne
+            (
+                o,
+                "Refaites les deux tests sur les termes : "
+                + ", ".join(f"${L(d)}$" for d in diffs)
+                + " pour les différences, "
+                + ", ".join(f"${r:.4g}$".replace(".", "{,}") for r in rapports)
+                + " pour les rapports.",
+            )
+            for o in options
+            if o != bonne
         ],
     )
 
@@ -279,44 +493,74 @@ def gen_reconnaitre() -> Exercice:
 
 
 def gen_somme() -> Exercice:
+    ctx = cx.tirer(cx.EFFECTIFS)
+    notation = cx.tirer_notation_suite()
+    n0 = notation.depart
     modele = random.choice(["arithmetique", "geometrique"])
-    n = random.choice([6, 7, 9, 11])
+    rang = n0 + random.choice([6, 7, 9, 11])
+    nb_termes = rang - n0 + 1
+    presentation = random.choice(["formule", "phrase"])
+
+    somme_latex = (
+        rf"{notation.initial} + {notation.terme(n0 + 1)} + \cdots + "
+        rf"{notation.terme(rang)}"
+    )
 
     if modele == "arithmetique":
-        u0 = random.choice([1_500, 2_400, 3_000])
+        premier = random.choice([1_500, 2_400, 3_000])
         r = random.choice([200, 350, 500])
-        un = u0 + n * r
-        reponse = float((n + 1) * (u0 + un) / 2)
-        enonce = f"""
-> Une suite arithmétique commence à $u_0 = {u0:,}$ et progresse de **{r}** par rang.
+        dernier = premier + (rang - n0) * r
+        reponse = float(nb_termes * (premier + dernier) / 2)
+
+        if presentation == "formule":
+            enonce = f"""
+> Une suite arithmétique vérifie ${notation.initial} = {L(premier)}$ et progresse
+> de **{_fr(r, 0)}** à chaque rang.
 >
-> Calculez la **somme** $u_0 + u_1 + \\cdots + u_{{{n}}}$.
-""".replace(",", "\u202f")
+> Calculez la **somme** ${somme_latex}$.
+"""
+        else:
+            enonce = f"""
+> {_maj(ctx.sujet)} s'élève à **{_fr(premier, 0)} {ctx.unite}** la première année
+> (rang ${n0}$), puis progresse de **{_fr(r, 0)} {ctx.unite} chaque année**.
+>
+> Combien cela fait-il **au total**, du rang ${n0}$ au rang ${rang}$ inclus ?
+"""
+
         etapes = [
             Etape(
-                "Identifier — pourquoi une formule plutôt qu'une addition",
-                f"Pour {n + 1} termes, additionner à la main reste possible. Pour 40 "
-                "termes, il faut une formule. Et c'est bien une somme qui est "
-                "demandée, pas le dernier terme.",
+                "Identifier — une somme, pas un terme",
+                f"La question porte sur le **cumul** de tous les termes, pas sur la "
+                f"valeur au rang {rang}. Pour {nb_termes} termes, additionner à la "
+                "main reste possible ; pour quarante, il faut une formule.",
+            ),
+            Etape(
+                "Compter les termes — l'erreur la plus coûteuse",
+                f"Du rang ${n0}$ au rang ${rang}$ **inclus**, il y a "
+                f"${rang} - {n0} + 1 = {nb_termes}$ termes. On oublie presque toujours "
+                "le « $+1$ » : les deux extrémités comptent.",
             ),
             Etape(
                 "Calculer le dernier terme",
-                "La formule de la somme a besoin des deux extrémités.",
-                rf"u_{{{n}}} = {u0} + {n} \times {r} = {un}",
+                "La formule de Gauss a besoin des deux extrémités.",
+                rf"{notation.terme(rang)} = {L(premier)} + {rang - n0} \times "
+                rf"{L(r)} = {L(dernier)}",
             ),
             Etape(
                 "Appliquer l'astuce de Gauss",
-                "On apparie le premier terme avec le dernier, le deuxième avec "
-                f"l'avant-dernier : chaque paire vaut ${u0 + un}$. Il suffit donc de "
-                "multiplier le nombre de termes par leur moyenne.",
-                rf"S = ({n} + 1) \times \frac{{{u0} + {un}}}{{2}} = {reponse:.0f}",
+                f"On apparie le premier terme avec le dernier, le deuxième avec "
+                f"l'avant-dernier : chaque paire vaut ${L(premier + dernier)}$. La "
+                "somme vaut donc le nombre de termes multiplié par leur moyenne.",
+                rf"S = {nb_termes} \times \frac{{{L(premier)} + {L(dernier)}}}{{2}} "
+                rf"= {L(reponse)}",
             ),
             Etape(
                 "Vérifier — l'encadrement",
-                f"La somme doit être comprise entre ${n + 1} \\times {u0} = "
-                f"{(n+1)*u0:,}$ (si tous les termes valaient le plus petit) et "
-                f"${n + 1} \\times {un} = {(n+1)*un:,}$. "
-                f"{reponse:,.0f} est bien entre les deux. ✓".replace(",", "\u202f"),
+                f"La somme doit tomber entre ${nb_termes} \\times {L(premier)} = "
+                f"{L(nb_termes * premier)}$ (si tous les termes valaient le plus "
+                f"petit) et ${nb_termes} \\times {L(dernier)} = "
+                f"{L(nb_termes * dernier)}$. ${L(reponse)}$ est bien entre les "
+                "deux. ✓",
             ),
             Etape(
                 "Interpréter",
@@ -327,23 +571,38 @@ def gen_somme() -> Exercice:
             ),
         ]
         pieges = [
-            (float(un),
-             "Vous avez donné le **dernier terme**, pas la somme de tous les termes."),
-            (float(n * (u0 + un) / 2),
-             f"Il y a ${n} + 1 = {n + 1}$ termes, pas ${n}$ : la suite commence au "
-             "rang 0."),
+            (
+                float(dernier),
+                "Vous avez donné le **dernier terme**, pas la somme de tous les termes.",
+            ),
+            (
+                float((nb_termes - 1) * (premier + dernier) / 2),
+                f"Il y a ${rang} - {n0} + 1 = {nb_termes}$ termes, pas "
+                f"${nb_termes - 1}$ : les deux extrémités comptent.",
+            ),
         ]
-        libelle = "Somme"
     else:
-        u0 = random.choice([1_000, 2_500, 5_000])
+        premier = random.choice([1_000, 2_500, 5_000])
         taux = random.choice([5, 8, 10])
-        q_ = 1 + taux / 100
-        reponse = u0 * (1 - q_ ** (n + 1)) / (1 - q_)
-        enonce = f"""
-> Une suite géométrique commence à $u_0 = {u0:,}$ et progresse de **{taux} %** par rang.
+        q = 1 + taux / 100
+        reponse = premier * (1 - q**nb_termes) / (1 - q)
+
+        if presentation == "formule":
+            enonce = f"""
+> Une suite géométrique vérifie ${notation.initial} = {L(premier)}$ et progresse
+> de **{taux} %** à chaque rang.
 >
-> Calculez la **somme** $u_0 + u_1 + \\cdots + u_{{{n}}}$. Arrondissez à l'unité.
-""".replace(",", "\u202f")
+> Calculez la **somme** ${somme_latex}$. Arrondissez à l'unité.
+"""
+        else:
+            enonce = f"""
+> {_maj(ctx.sujet)} s'élève à **{_fr(premier, 0)} {ctx.unite}** la première année
+> (rang ${n0}$), puis {cx.phrase_taux(taux, periode="chaque année")}.
+>
+> Combien cela fait-il **au total**, du rang ${n0}$ au rang ${rang}$ inclus ?
+> Arrondissez à l'unité.
+"""
+
         etapes = [
             Etape(
                 "Identifier — la somme géométrique a sa propre formule",
@@ -352,23 +611,25 @@ def gen_somme() -> Exercice:
                 "somme. Une autre formule est nécessaire.",
             ),
             Etape(
-                "Compter les termes",
-                f"De $u_0$ à $u_{{{n}}}$, il y a **{n + 1}** termes. C'est ce nombre "
-                "qui apparaît en exposant dans la formule.",
-                rf"S = u_0 \times \frac{{1 - q^{{\,{n}+1}}}}{{1 - q}}",
+                "Compter les termes — l'erreur la plus coûteuse",
+                f"Du rang ${n0}$ au rang ${rang}$ **inclus**, il y a "
+                f"${rang} - {n0} + 1 = {nb_termes}$ termes. C'est ce nombre qui "
+                "apparaît en exposant dans la formule — pas le rang.",
+                rf"S = {notation.initial} \times "
+                rf"\frac{{1 - q^{{\,{nb_termes}}}}}{{1 - q}}",
             ),
             Etape(
                 "Calculer",
                 "",
-                rf"S = {u0} \times \frac{{1 - ({q_})^{{{n+1}}}}}{{1 - {q_}}} "
-                rf"\approx {reponse:.0f}",
+                rf"S = {L(premier)} \times \frac{{1 - ({L(q)})^{{{nb_termes}}}}}"
+                rf"{{1 - {L(q)}}} \approx {L(round(reponse))}",
             ),
             Etape(
                 "Vérifier — l'encadrement",
-                f"La somme doit dépasser ${n + 1} \\times {u0} = {(n+1)*u0:,}$ "
-                "(si tous les termes valaient le premier), puisque la suite est "
-                f"croissante. {reponse:,.0f} le dépasse bien. ✓"
-                .replace(",", "\u202f"),
+                f"La somme doit dépasser ${nb_termes} \\times {L(premier)} = "
+                f"{L(nb_termes * premier)}$ (si tous les termes valaient le premier), "
+                f"puisque la suite est croissante. ${L(round(reponse))}$ le dépasse "
+                "bien. ✓",
             ),
             Etape(
                 "Interpréter",
@@ -378,21 +639,26 @@ def gen_somme() -> Exercice:
             ),
         ]
         pieges = [
-            (float(u0 * q_**n),
-             "Vous avez donné le **dernier terme**, pas la somme."),
-            (float(u0 * (1 - q_**n) / (1 - q_)),
-             f"Il y a ${n} + 1 = {n + 1}$ termes : l'exposant de la formule est "
-             f"${n + 1}$, pas ${n}$."),
+            (
+                float(premier * q ** (rang - n0)),
+                "Vous avez donné le **dernier terme**, pas la somme.",
+            ),
+            (
+                float(premier * (1 - q ** (nb_termes - 1)) / (1 - q)),
+                f"Il y a {nb_termes} termes : l'exposant de la formule est "
+                f"${nb_termes}$, pas ${nb_termes - 1}$.",
+            ),
         ]
-        libelle = "Somme"
 
     return Exercice(
         enonce=enonce,
         reponse=reponse,
         etapes=etapes,
-        libelle=libelle,
+        libelle="Somme",
+        unite=ctx.unite if presentation == "phrase" else "",
         tolerance=0.002,
-        indice="Combien y a-t-il de termes entre le rang 0 et le rang n ?",
+        indice=f"Combien y a-t-il de termes entre le rang {n0} et le rang {rang}, "
+        "bornes comprises ?",
         pieges=pieges,
     )
 

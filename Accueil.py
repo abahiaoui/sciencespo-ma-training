@@ -42,9 +42,11 @@ with colonne_1:
     with st.container(border=True):
         st.markdown("### 🎲 Un énoncé tiré au hasard")
         st.markdown(
-            "Les nombres changent à **chaque tentative**. Il n'y a donc rien à "
-            "apprendre par cœur : ni la réponse, ni la suite d'opérations. "
-            "Refaites un exercice autant de fois que nécessaire."
+            "À **chaque tentative**, ce ne sont pas seulement les nombres qui "
+            "changent : le **contexte**, les **lettres** employées et la "
+            "**forme** sous laquelle l'énoncé arrive changent aussi. "
+            "Il n'y a donc rien à apprendre par cœur — et le jour de l'examen, "
+            "aucune présentation ne vous surprendra."
         )
 
 with colonne_2:
@@ -186,18 +188,16 @@ with colonne_droite:
     st.header("Rappel des modalités")
     st.markdown(
         """
-- **Deux notes de contrôle continu**, une par module.
+- **Le contrôle continu**, sur le module de semestre.
 - **Un examen final** de 1h30 à la fin du module de semestre ; les notions
   de pré-rentrée y sont exigibles.
 """
     )
-    st.latex(
-        r"\text{Moyenne} = \max\!\left( EF \;;\; \tfrac{1}{4}CC_{\text{pré}}"
-        r" + \tfrac{1}{4}CC_{\text{sem}} + \tfrac{1}{2}EF \right)"
-    )
+    st.latex(r"\text{Moyenne} = \tfrac{2}{3}\,CC + \tfrac{1}{3}\,EF")
     st.markdown(
-        "Les contrôles continus ne peuvent que vous **avantager** : "
-        "on retient la plus grande des deux quantités."
+        "Le contrôle continu pèse donc **deux fois plus** que l'examen final : "
+        "c'est le travail régulier qui détermine l'essentiel de la moyenne, "
+        "pas une performance sur 1h30."
     )
 
 st.markdown("---")

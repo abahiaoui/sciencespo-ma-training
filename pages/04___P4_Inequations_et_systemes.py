@@ -1,11 +1,12 @@
 """Série P4 — Inéquations et systèmes. Fil rouge B : Vélocité (clôture de l'arc)."""
 
 import random
-from fractions import Fraction
 
 import streamlit as st
 import sympy as sp
 
+import contextes as cx
+from contextes import latex_nombre as L
 from moteur import Etape, Exercice, executer
 
 st.set_page_config(page_title="P4 | Inéquations et systèmes", page_icon="🔀", layout="wide")
@@ -63,22 +64,37 @@ def _fr(v, n=2):
     return f"{v:,.{n}f}".replace(",", "\u202f").replace(".", ",")
 
 
+#: L'inconnue change de lettre d'un énoncé à l'autre.
+INCONNUES = ["x", "y", "t", "q", "n"]
+
+
+def _maj(texte: str) -> str:
+    return texte[:1].upper() + texte[1:]
+
+
 # --- 1. Inéquation : la borne -----------------------------------------------
 
 
 def gen_borne() -> Exercice:
+    var = random.choice(INCONNUES)
+    v = sp.Symbol(var)
     a = random.choice([-6, -5, -4, -3, -2, 3, 4, 5])
     sol = random.choice([-3, -2, 2, 3, 4, 6])
     b = random.choice([-6, -2, 3, 7])
     d = a * sol + b
-    sens_final = "<" if a < 0 else ">"
+    comparateur = random.choice([">", "<", r"\geq", r"\leq"])
+    sens_final = (
+        comparateur
+        if a > 0
+        else {">": "<", "<": ">", r"\geq": r"\leq", r"\leq": r"\geq"}[comparateur]
+    )
 
     enonce = f"""
 > On considère l'inéquation
 >
-> $$ {sp.latex(a*x + b)} \\;>\\; {d} $$
+> $$ {sp.latex(a * v + b)} \\;{comparateur}\\; {L(d)} $$
 >
-> Sa solution s'écrit $x < s$ ou $x > s$ selon le cas. **Donnez la valeur de $s$.**
+> Sa solution est un intervalle de borne $s$. **Donnez la valeur de $s$.**
 >
 > *(Le sens de l'inégalité fait l'objet de l'onglet suivant.)*
 """
@@ -86,30 +102,30 @@ def gen_borne() -> Exercice:
     etapes = [
         Etape(
             "Identifier — même mécanique qu'une équation",
-            "On isole $x$ exactement comme en séance 3 : on déplace la constante, "
-            "puis on divise par le coefficient. Seul le traitement du sens diffère.",
+            f"On isole ${var}$ exactement comme en séance 3 : on déplace la constante, "
+            "puis on divise par le coefficient. Seul le traitement du sens diffère — "
+            "et la borne, elle, ne dépend pas du sens.",
         ),
         Etape(
             "Déplacer la constante",
             "Ajouter ou retrancher un nombre des deux côtés **ne change jamais** le "
             "sens d'une inégalité : cette opération est toujours sûre.",
-            rf"{sp.latex(a*x + b)} > {d} \iff {sp.latex(a*x)} > {d - b}",
+            rf"{sp.latex(a * v + b)} {comparateur} {L(d)} \iff "
+            rf"{sp.latex(a * v)} {comparateur} {L(d - b)}",
         ),
         Etape(
             "Diviser par le coefficient",
-            f"Le coefficient vaut ${a}$, il est "
+            f"Le coefficient vaut ${L(a)}$, il est "
             f"**{'négatif' if a < 0 else 'positif'}** : la division "
             f"{'**renverse**' if a < 0 else 'conserve'} le sens.",
-            rf"x {sens_final} \frac{{{d - b}}}{{{a}}} = {sol}",
+            rf"{var} {sens_final} \frac{{{L(d - b)}}}{{{L(a)}}} = {L(sol)}",
         ),
         Etape(
             "Vérifier — tester une valeur de chaque côté",
-            f"Avec $x = {sol - 1}$ : ${a} \\times {sol - 1} + ({b}) = "
-            f"{a*(sol-1) + b}$, "
-            f"{'bien' if a*(sol-1)+b > d else 'pas'} supérieur à ${d}$. "
-            f"Avec $x = {sol + 1}$ : ${a*(sol+1) + b}$, "
-            f"{'bien' if a*(sol+1)+b > d else 'pas'} supérieur. ✓ "
-            "Deux tests confirment à la fois la borne et le sens.",
+            f"Avec ${var} = {L(sol - 1)}$ : ${L(a)} \\times {L(sol - 1)} + "
+            f"({L(b)}) = {L(a * (sol - 1) + b)}$. Avec ${var} = {L(sol + 1)}$ : "
+            f"${L(a * (sol + 1) + b)}$. L'un vérifie l'inégalité, l'autre non : la "
+            "borne est bien là. ✓",
         ),
         Etape(
             "Interpréter",
@@ -127,9 +143,15 @@ def gen_borne() -> Exercice:
         tolerance=1e-6,
         indice="La borne se calcule exactement comme dans une équation.",
         pieges=[
-            (float(d + b) / a,
-             "Erreur de signe en déplaçant la constante : on la **retranche** des "
-             "deux membres."),
+            (
+                float(d + b) / a,
+                "Erreur de signe en déplaçant la constante : on la **retranche** des "
+                "deux membres.",
+            ),
+            (
+                float(d - b) * a,
+                "Vous avez multiplié par le coefficient au lieu de diviser.",
+            ),
         ],
     )
 
@@ -138,47 +160,60 @@ def gen_borne() -> Exercice:
 
 
 def gen_sens() -> Exercice:
+    var = random.choice(INCONNUES)
+    v = sp.Symbol(var)
     a = random.choice([-5, -4, -3, -2, 2, 3, 4, 5])
     seuil = random.choice([-2, 3, 4, 6, 8])
+    presentation = random.choice(["coefficient", "fraction"])
     sens_initial = random.choice(["<", ">"])
-    if a > 0:
-        sens_final = sens_initial
-    else:
-        sens_final = ">" if sens_initial == "<" else "<"
+    sens_final = sens_initial if a > 0 else (">" if sens_initial == "<" else "<")
 
-    reponse = f"S = ]{'-∞ ; ' + str(seuil) if sens_final == '<' else str(seuil) + ' ; +∞'}["
+    if presentation == "fraction":
+        # x/a  <  seuil/a  :  même règle, écriture différente.
+        membre_gauche = rf"\frac{{{var}}}{{{L(a)}}}"
+        membre_droit = sp.latex(sp.Rational(seuil, a))
+        lecture = (
+            f"Diviser par ${L(a)}$ ou multiplier par ${L(a)}$ pose la même question : "
+            "seul le **signe** du nombre par lequel on multiplie ou divise compte."
+        )
+    else:
+        membre_gauche = sp.latex(a * v)
+        membre_droit = L(a * seuil)
+        lecture = (
+            f"Le coefficient de ${var}$ vaut ${L(a)}$ : il est "
+            f"**{'négatif' if a < 0 else 'positif'}**. C'est la seule information qui "
+            "décide du sens final, et la question se pose **avant** de diviser."
+        )
+
+    bonne = f"S = ]{'-∞ ; ' + str(seuil) if sens_final == '<' else str(seuil) + ' ; +∞'}["
     autre = f"S = ]{'-∞ ; ' + str(seuil) if sens_final == '>' else str(seuil) + ' ; +∞'}["
-    options = [reponse, autre, f"S = {{{seuil}}}"]
+    unique = f"S = {{{seuil}}}"
+    options = [bonne, autre, unique]
     random.shuffle(options)
 
     enonce = f"""
 > Après calcul, on est arrivé à l'étape suivante :
 >
-> $$ {sp.latex(a*x)} \\;{sens_initial}\\; {a*seuil} $$
+> $$ {membre_gauche} \\;{sens_initial}\\; {membre_droit} $$
 >
 > Quel est l'**ensemble des solutions** ?
 """
 
     etapes = [
-        Etape(
-            "Identifier — regarder le signe du coefficient",
-            f"Le coefficient de $x$ vaut ${a}$ : il est "
-            f"**{'négatif' if a < 0 else 'positif'}**. C'est la seule information qui "
-            "décide du sens final, et la question se pose **avant** de diviser.",
-        ),
+        Etape("Identifier — regarder le signe du coefficient", lecture),
         Etape(
             "Appliquer la règle",
-            f"Diviser par un nombre {'négatif renverse' if a < 0 else 'positif conserve'} "
-            f"le sens : ${sens_initial}$ devient ${sens_final}$.",
-            rf"{sp.latex(a*x)} {sens_initial} {a*seuil} \iff x {sens_final} {seuil}",
+            f"Passer de cette écriture à ${var}$ seul demande une division par "
+            f"${L(a)}$, {'négatif : le sens se renverse' if a < 0 else 'positif : le sens est conservé'}. "
+            f"${sens_initial}$ devient ${sens_final}$.",
+            rf"{membre_gauche} {sens_initial} {membre_droit} \iff "
+            rf"{var} {sens_final} {L(seuil)}",
         ),
         Etape(
             "Vérifier — le test numérique tranche toujours",
-            f"Testons $x = {seuil - 1 if sens_final == '<' else seuil + 1}$ : "
-            f"${a} \\times {seuil - 1 if sens_final == '<' else seuil + 1} = "
-            f"{a * (seuil - 1 if sens_final == '<' else seuil + 1)}$, "
-            f"bien ${sens_initial}\\ {a*seuil}$. ✓ "
-            "En cas de doute sur la règle, ce test de cinq secondes la remplace.",
+            f"Testons ${var} = {L(seuil - 1 if sens_final == '<' else seuil + 1)}$ "
+            "dans l'inéquation de départ : elle est vérifiée. ✓ En cas de doute sur "
+            "la règle, ce test de cinq secondes la remplace intégralement.",
         ),
         Etape(
             "Interpréter — pourquoi le sens se renverse",
@@ -190,19 +225,23 @@ def gen_sens() -> Exercice:
 
     return Exercice(
         enonce=enonce,
-        reponse=reponse,
+        reponse=bonne,
         etapes=etapes,
         type_reponse="qcm",
         options=options,
         libelle="Ensemble des solutions",
-        indice="Le signe du coefficient de $x$ décide de tout.",
+        indice="Le signe du nombre par lequel on divise décide de tout.",
         pieges=[
-            (autre,
-             f"Le coefficient ${a}$ est **{'négatif' if a < 0 else 'positif'}** : "
-             f"diviser par lui {'renverse' if a < 0 else 'conserve'} le sens."),
-            (f"S = {{{seuil}}}",
-             "Une inéquation n'a pas une solution unique mais un **intervalle** de "
-             "solutions."),
+            (
+                autre,
+                f"Le coefficient ${L(a)}$ est **{'négatif' if a < 0 else 'positif'}** : "
+                f"diviser par lui {'renverse' if a < 0 else 'conserve'} le sens.",
+            ),
+            (
+                unique,
+                "Une inéquation n'a pas une solution unique mais un **intervalle** de "
+                "solutions.",
+            ),
         ],
     )
 
@@ -211,6 +250,10 @@ def gen_sens() -> Exercice:
 
 
 def gen_systeme() -> Exercice:
+    couple = random.choice([("x", "y"), ("x", "y"), ("p", "q"), ("a", "b")])
+    var1, var2 = couple
+    v1, v2 = sp.Symbol(var1), sp.Symbol(var2)
+    presentation = random.choice(["algebrique", "contextuel"])
     x0 = random.choice([-3, -2, 1, 2, 3, 4, 5])
     y0 = random.choice([-4, -1, 2, 3, 6])
     a1 = random.choice([1, 2, 3])
@@ -221,51 +264,80 @@ def gen_systeme() -> Exercice:
         b2 = random.choice([3, -3, 1, 5, 2])
     c1 = a1 * x0 + b1 * y0
     c2 = a2 * x0 + b2 * y0
+    det = a1 * b2 - a2 * b1
 
-    enonce = f"""
+    if presentation == "contextuel":
+        # Deux achats groupés : mêmes équations, énoncé en français.
+        x0, y0 = abs(x0) + 2, abs(y0) + 3
+        a1, b1 = random.choice([2, 3]), random.choice([4, 5])
+        a2, b2 = random.choice([5, 6]), random.choice([2, 3])
+        while a1 * b2 - a2 * b1 == 0:
+            b2 = random.choice([2, 3, 7])
+        c1 = a1 * x0 + b1 * y0
+        c2 = a2 * x0 + b2 * y0
+        det = a1 * b2 - a2 * b1
+        enonce = f"""
+> Un service achète deux types de fournitures, au prix unitaire ${var1}$ et ${var2}$
+> (en euros).
+>
+> - {a1} unités du premier type et {b1} du second coûtent **{L(c1)} €** ;
+> - {a2} unités du premier et {b2} du second coûtent **{L(c2)} €**.
+>
+> Quel est le prix unitaire ${var1}$ ?
+"""
+        mise_en_place = (
+            "Premier geste : traduire les deux phrases en équations. « {a} unités à "
+            f"${var1}$ et {b1} à ${var2}$ » s'écrit "
+            f"${a1}{var1} + {b1}{var2} = {L(c1)}$."
+        ).replace("{a}", str(a1))
+    else:
+        enonce = f"""
 > Résolvez le système suivant :
 >
 > $$ \\begin{{cases}}
-> {sp.latex(a1*x + b1*y)} = {c1} \\\\
-> {sp.latex(a2*x + b2*y)} = {c2}
+> {sp.latex(a1 * v1 + b1 * v2)} = {L(c1)} \\\\
+> {sp.latex(a2 * v1 + b2 * v2)} = {L(c2)}
 > \\end{{cases}} $$
 >
-> Donnez la valeur de $x$.
+> Donnez la valeur de ${var1}$.
 """
-
-    det = a1 * b2 - a2 * b1
+        mise_en_place = "Le système est déjà posé : il reste à éliminer une inconnue."
 
     etapes = [
         Etape(
             "Identifier — deux inconnues, donc deux équations",
-            "Une seule équation à deux inconnues a une infinité de solutions. "
-            "Il en faut une seconde pour trancher. L'objectif de toute méthode est "
-            "d'**éliminer une inconnue** pour se ramener au cas de la séance 3.",
+            f"{mise_en_place} Une seule équation à deux inconnues a une infinité de "
+            "solutions ; il en faut une seconde pour trancher. L'objectif de toute "
+            "méthode est d'**éliminer une inconnue** pour se ramener au cas de la "
+            "séance 3.",
         ),
         Etape(
             "Calculer — par combinaison linéaire",
-            f"On multiplie la première équation par ${b2}$ et la seconde par "
-            f"${-b1}$, puis on les additionne : les termes en $y$ disparaissent.",
-            rf"({a1} \times {b2} - {a2} \times {b1})\,x = "
-            rf"{b2} \times {c1} - {b1} \times {c2} "
-            rf"\iff {det}x = {b2*c1 - b1*c2} \iff x = {x0}",
+            f"On multiplie la première équation par ${L(b2)}$ et la seconde par "
+            f"${L(-b1)}$, puis on les additionne : les termes en ${var2}$ "
+            "disparaissent.",
+            rf"({L(a1)} \times {L(b2)} - {L(a2)} \times {L(b1)})\,{var1} = "
+            rf"{L(b2)} \times {L(c1)} - {L(b1)} \times {L(c2)} "
+            rf"\iff {L(det)}\,{var1} = {L(b2 * c1 - b1 * c2)} "
+            rf"\iff {var1} = {L(x0)}",
         ),
         Etape(
             "Trouver la seconde inconnue",
-            f"On reporte $x = {x0}$ dans la première équation :",
-            rf"{a1} \times {x0} + {b1}y = {c1} \iff y = {y0}",
+            f"On reporte ${var1} = {L(x0)}$ dans la première équation :",
+            rf"{L(a1)} \times {L(x0)} + {L(b1)}\,{var2} = {L(c1)} \iff "
+            rf"{var2} = {L(y0)}",
         ),
         Etape(
             "Vérifier — dans les DEUX équations",
-            f"Équation 1 : ${a1} \\times {x0} + ({b1}) \\times {y0} = {c1}$ ✓. "
-            f"Équation 2 : ${a2} \\times {x0} + ({b2}) \\times {y0} = {c2}$ ✓. "
-            "Vérifier une seule équation ne prouve rien : le couple doit satisfaire "
-            "les deux simultanément.",
+            f"Équation 1 : ${L(a1)} \\times {L(x0)} + ({L(b1)}) \\times {L(y0)} = "
+            f"{L(c1)}$ ✓. Équation 2 : ${L(a2)} \\times {L(x0)} + ({L(b2)}) \\times "
+            f"{L(y0)} = {L(c2)}$ ✓. Vérifier une seule équation ne prouve rien : le "
+            "couple doit satisfaire les deux simultanément.",
         ),
         Etape(
             "Interpréter — deux droites qui se croisent",
-            "Chaque équation décrit une droite. La solution est leur **point "
-            f"d'intersection**, ici $({x0}\\,;\\,{y0})$. Comme les deux pentes "
+            f"Chaque équation décrit une droite. La solution est leur **point "
+            f"d'intersection**, ici $({L(x0)}\\,;\\,{L(y0)})$. Comme les deux pentes "
             "diffèrent, les droites sont sécantes et la solution est unique — c'est "
             "le cas général, mais pas le seul possible.",
         ),
@@ -275,77 +347,82 @@ def gen_systeme() -> Exercice:
         enonce=enonce,
         reponse=float(x0),
         etapes=etapes,
-        libelle="x =",
+        libelle=f"{var1} =",
         tolerance=1e-6,
         indice="Éliminez une inconnue pour vous ramener à une équation simple.",
         pieges=[
-            (float(y0),
-             "Vous avez donné $y$ au lieu de $x$. Les deux valeurs sont justes mais "
-             "l'énoncé demande l'abscisse."),
-            (float(c1) / a1 if a1 != 0 else 0.0,
-             "Vous avez résolu la première équation en ignorant $y$. Une équation à "
-             "deux inconnues ne se résout pas seule."),
+            (
+                float(y0),
+                f"Vous avez donné ${var2}$ au lieu de ${var1}$. Les deux valeurs sont "
+                "justes, mais l'énoncé demande la première.",
+            ),
+            (
+                float(c1) / a1 if a1 != 0 else 0.0,
+                "Vous avez résolu la première équation en ignorant la seconde "
+                "inconnue. Une équation à deux inconnues ne se résout pas seule.",
+            ),
         ],
     )
 
 
-# --- 4. Fil rouge : Vélocité bénéficiaire -----------------------------------
+# --- 4. Fil rouge : un service bénéficiaire ---------------------------------
 
 
 def gen_velocite_benefice() -> Exercice:
-    fixe = 40_000
-    variable = random.choice([87.5, 80.0, 75.0, 82.5])
-    recette = 90
+    ctx, dispositif, _ = random.choice(cx.DISPOSITIFS)
+    var = random.choice(["q", "n", "x"])
+    fixe = random.choice([30_000, 40_000, 55_000])
+    recette = random.choice([90, 120, 150])
+    variable = recette - random.choice([2.5, 5, 7.5, 10])
     marge = recette - variable
     reponse = fixe / marge
 
     enonce = f"""
-> **Vélocité (clôture de l'arc).** Une fois la flotte ramenée au nombre
-> d'abonnements, la recette vaut $90q$ et le coût
-> $40\\,000 + {str(variable).replace('.', ',')}\\,q$, où $q$ est le nombre
-> d'abonnements.
+> **{_maj(ctx.acteur)} (clôture de l'arc).** La recette vaut ${recette}\\,{var}$ et le
+> coût ${L(fixe)} + {L(variable)}\\,{var}$, où ${var}$ est le nombre de ventes.
 >
-> Pour quels nombres d'abonnements le service est-il **bénéficiaire** ?
+> Pour quels nombres de ventes le service est-il **bénéficiaire** ?
 > Donnez la borne de l'ensemble des solutions.
 """
 
     etapes = [
         Etape(
-            "Identifier — bénéficiaire signifie recette strictement supérieure au coût",
+            "Identifier — « bénéficiaire » signifie recette strictement supérieure au coût",
             "La question se traduit par une **inéquation**, pas une équation : on ne "
             "cherche pas un point d'équilibre mais un ensemble de situations "
             "favorables.",
-            rf"90q > 40\,000 + {variable}q",
+            rf"{recette}\,{var} > {L(fixe)} + {L(variable)}\,{var}",
         ),
         Etape(
-            "Rassembler les termes en $q$",
-            f"On retranche ${variable}q$ des deux membres. Cette opération ne change "
-            "pas le sens de l'inégalité.",
-            rf"90q - {variable}q > 40\,000 \iff {marge}q > 40\,000",
+            f"Rassembler les termes en ${var}$",
+            f"On retranche ${L(variable)}\\,{var}$ des deux membres. Cette opération "
+            "ne change pas le sens de l'inégalité.",
+            rf"{recette}\,{var} - {L(variable)}\,{var} > {L(fixe)} \iff "
+            rf"{L(marge)}\,{var} > {L(fixe)}",
         ),
         Etape(
             "Diviser — le coefficient est positif",
-            f"Le coefficient ${marge}$ est **positif** : le sens est conservé. "
+            f"Le coefficient ${L(marge)}$ est **positif** : le sens est conservé. "
             "C'est ici qu'il fallait se poser la question, même si la réponse est "
             "rassurante.",
-            rf"q > \frac{{40\,000}}{{{marge}}} \approx {reponse:.1f}",
+            rf"{var} > \frac{{{L(fixe)}}}{{{L(marge)}}} \approx "
+            rf"{L(round(reponse, 1))}",
         ),
         Etape(
             "Vérifier",
-            f"Pour $q = {int(reponse) + 100}$ : recette "
-            f"{90*(int(reponse)+100):,.0f} €, coût "
-            f"{40000 + variable*(int(reponse)+100):,.0f} € — bénéficiaire. ✓ "
-            f"Pour $q = {int(reponse) - 100}$, la situation s'inverse. ✓"
-            .replace(",", "\u202f"),
+            f"Pour ${var} = {L(int(reponse) + 100)}$ : recette "
+            f"{_fr(recette * (int(reponse) + 100), 0)} €, coût "
+            f"{_fr(fixe + variable * (int(reponse) + 100), 0)} € — bénéficiaire. ✓ "
+            f"Pour ${var} = {L(int(reponse) - 100)}$, la situation s'inverse. ✓",
         ),
         Etape(
             "Interpréter — la marge unitaire",
-            f"Le nombre ${marge}$ qui apparaît au dénominateur est la **marge par "
-            f"abonnement** : ce que chaque abonnement laisse une fois son coût "
-            f"variable couvert. Il faut environ {reponse:.0f} abonnements pour que "
-            "ces marges cumulées absorbent les 40 000 € de coûts fixes. "
-            "Cette lecture — coût fixe divisé par marge unitaire — est le calcul de "
-            "seuil de rentabilité standard.",
+            f"Le nombre ${L(marge)}$ qui apparaît au dénominateur est la **marge "
+            f"unitaire** : ce que chaque vente laisse une fois son coût variable "
+            f"couvert. Il faut environ {_fr(reponse, 0)} ventes pour que ces marges "
+            f"cumulées absorbent les {_fr(fixe, 0)} € de coûts fixes. Cette lecture — "
+            "coût fixe divisé par marge unitaire — est le calcul de seuil de "
+            "rentabilité standard.",
         ),
     ]
 
@@ -353,21 +430,27 @@ def gen_velocite_benefice() -> Exercice:
         enonce=enonce,
         reponse=reponse,
         etapes=etapes,
-        libelle="Borne (nombre d'abonnements)",
+        libelle="Borne (nombre de ventes)",
         tolerance=0.005,
-        indice="Rassemblez les termes en $q$ d'un côté : que reste-t-il comme "
+        indice=f"Rassemblez les termes en ${var}$ d'un côté : que reste-t-il comme "
         "coefficient ?",
         pieges=[
-            (float(fixe) / recette,
-             "Vous avez divisé par la recette unitaire au lieu de la **marge**. "
-             f"Chaque abonnement ne laisse que {marge} € une fois son coût variable "
-             "payé."),
-            (float(fixe) / variable,
-             "Vous avez divisé par le coût variable unitaire. C'est l'écart entre "
-             "recette et coût variable qui compte."),
-            (float(fixe) / (recette + variable),
-             "Les deux montants se **soustraient** : on cherche ce que rapporte "
-             "chaque abonnement net de son coût."),
+            (
+                float(fixe) / recette,
+                "Vous avez divisé par la recette unitaire au lieu de la **marge**. "
+                f"Chaque vente ne laisse que {_fr(marge)} € une fois son coût variable "
+                "payé.",
+            ),
+            (
+                float(fixe) / variable,
+                "Vous avez divisé par le coût variable unitaire. C'est l'écart entre "
+                "recette et coût variable qui compte.",
+            ),
+            (
+                float(fixe) / (recette + variable),
+                "Les deux montants se **soustraient** : on cherche ce que rapporte "
+                "chaque vente net de son coût.",
+            ),
         ],
     )
 

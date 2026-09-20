@@ -19,11 +19,40 @@ The tool allows students to:
 ### 🔄 Infinite Practice
 Every exercise is generated randomly upon request. Figures, contexts and expressions change at each attempt, so students practise the *method* rather than memorising a result or a sequence of keystrokes.
 
+### 🎭 Randomisation on Three Axes
+Randomising the *numbers* alone is not enough: a student who has met
+`u_0 = 12 400, u_{n+1} = 1,08 u_n` twenty times has memorised a template, not a
+method, and freezes when the same question arrives in a different shape. Every
+generator therefore draws on three axes, defined once in `contextes.py`:
+
+1. **Context** — each exercise family carries two to five scenarios (subscribers,
+   library loans, municipal debt, student housing, festival tickets, repair
+   workshop…), with units and orders of magnitude that fit the scenario.
+2. **Notation** — sequences are named $u$, $v$, $w$ or $c$ and may start at rank
+   **0 or 1**; functions are $f(x)$, $g(t)$, $C(q)$, $R(p)$; supply is $O$ or $S$;
+   the unknown is not always $x$.
+3. **Shape of the object given** — a sequence arrives as a recurrence, a French
+   sentence, a table of readings, or two terms from which the ratio must be
+   deduced; a quadratic arrives expanded, factored, in vertex form or as a
+   product of two affine factors; a growth rate arrives as a percentage, a
+   multiplier, a continuous $e^{kt}$ form or a base-100 index.
+
+The correction is rebuilt on whatever was drawn, so no step ever assumes a
+particular context, letter or shape — the same constraint that already applied
+to numerical parameters.
+
 ### 🧭 Method-First Correction
 The correction is generated, not written. Each step is rebuilt on the parameters actually drawn, and follows the same four-part template throughout the course: **Identify → Compute → Verify → Interpret** — an echo of the four synthesis blocks closing every lecture (*technique / concept / cours / contexte*).
 
 ### 🔍 Computed Distractors
 For each exercise, the values obtained through classic mistakes are computed in advance. Dividing millions of euros by inhabitants without converting, adding two nested fractions instead of multiplying them, applying a rate linearly instead of compounding it: each triggers a targeted diagnosis instead of a bare ❌.
+
+### 🔢 Numeric Answers, Either Separator
+Numeric answers are typed in a text field parsed by the app itself, not by the
+browser: `12,5` and `12.5` are both accepted, as are thousands spaces (`1 250`)
+and a trailing unit (`12,5 %`). Streamlit's native number widget delegates parsing
+to the browser locale, which silently rejected the dot on French-configured
+machines.
 
 ### 🧮 Symbolic Answers
 Algebraic answers are checked with **SymPy**, so all equivalent forms are accepted: `5x/6`, `x*5/6` and `(5/6)x` are treated as the same expression.
@@ -102,6 +131,7 @@ To run this app locally on your machine:
 ```
 Accueil.py                                  main script (home page)
 moteur.py                                   shared engine: grading + rendering
+contextes.py                                shared banks: contexts, notations, shapes
 pages/
     01___P1_Fractions_et_puissances.py      one file per session series
     …                                       (17 files, P1-P6 then S1-S11)
@@ -109,7 +139,15 @@ pages/
 requirements.txt
 ```
 
-`moteur.py` stays at the **root**, never inside `pages/`: Streamlit only adds the main script's directory to `sys.path`, and any `.py` file placed in `pages/` becomes a navigation entry in the sidebar.
+`moteur.py` and `contextes.py` stay at the **root**, never inside `pages/`: Streamlit only adds the main script's directory to `sys.path`, and any `.py` file placed in `pages/` becomes a navigation entry in the sidebar.
+
+`contextes.py` holds the reusable material for the three randomisation axes:
+context banks (`EFFECTIFS`, `MONETAIRES`, `PRODUCTIONS`, `MARCHES`, `DISPOSITIFS`,
+`BUDGETS`), notation helpers (`tirer_notation_suite`, `NotationFonction`), French
+phrasing helpers that keep elisions and agreements correct (`ctx.du`, `ctx.du_bien`,
+`a_contracte`, `phrase_taux`, `phrase_flux`), a `latex_nombre` formatter (French
+decimal comma, thin thousands separator) and `tableau_latex` for statements given
+as a table.
 
 ### ➕ Adding a Session
 
@@ -137,9 +175,26 @@ def gen_mon_exercice() -> Exercice:
 executer("cle_unique", gen_mon_exercice)
 ```
 
-Three conventions matter:
+A generator that follows the three-axis rule looks like this instead:
+
+```python
+import contextes as cx
+from contextes import latex_nombre as L
+
+def gen_mon_exercice() -> Exercice:
+    ctx = cx.tirer(cx.EFFECTIFS)                 # axis 1: context
+    notation = cx.tirer_notation_suite()         # axis 2: letter + starting rank
+    forme = random.choice(["recurrence", "phrase", "tableau"])   # axis 3: shape
+    …
+```
+
+The conventions that matter:
 
 * **Steps are rebuilt from the drawn parameters**, never hard-coded. This is the only real design constraint.
+* **Nothing in the correction may assume a context, a letter or a shape.** If a step says « la suite démarre au rang 0 » while the draw started at 1, the exercise is wrong even though the answer is right.
+* **French prose is generated too.** Use `ctx.du`, `ctx.du_bien`, `a_contracte()` for elisions, and prefer impersonal turns of phrase (« On modélise… ») over past participles, whose agreement depends on the gender of the context drawn.
+* **Numbers in maths mode go through `latex_nombre`** (`12\,400`, `1{,}08`); a thin space or a plain comma typed inside `$…$` is ignored or mis-spaced by KaTeX. Outside maths mode, use the page's local `_fr`.
+* **No backslash inside an f-string expression** (`f"{'\\infty' if …}"`): that is a syntax error before Python 3.12, even though Streamlit Cloud runs a newer version. Compute the string beforehand.
 * **`session_state` keys are global to the session, not to the page.** Prefix them with the session code (`p1_`, `p2_`, `s3_`…) so that two series never collide.
 * **Tolerance:** `tolerance` is relative (0.005 by default); `tolerance_abs` overrides it when set. A distractor lying too close to the correct answer is automatically ignored.
 

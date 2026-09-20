@@ -19,6 +19,7 @@ Convention des étapes : Identifier → Calculer → Vérifier → Interpréter.
 """
 
 import random
+import re
 
 from dataclasses import dataclass, field
 from typing import Any, Callable, List, Optional, Tuple
@@ -96,9 +97,57 @@ def analyser_numerique(ex: Exercice, valeur: float) -> Tuple[bool, str]:
     return False, ""
 
 
+def parser_nombre(texte) -> Optional[float]:
+    """Lit un nombre saisi par un étudiant. Renvoie None si illisible.
+
+    `st.number_input` délègue la lecture au navigateur, dont la locale décide
+    du séparateur décimal : sur un poste réglé en français, un « 12.5 » tapé
+    avec un point était rejeté. On lit donc un champ texte et l'on accepte
+    indifféremment la virgule et le point, les espaces de milliers, un signe
+    moins typographique, et une unité collée à la fin (« 12,5 % », « 85 M€ »).
+    """
+    if texte is None:
+        return None
+    texte = str(texte).strip()
+    for espace in ("\u202f", "\u00a0", " "):
+        texte = texte.replace(espace, "")
+    texte = texte.replace("\u2212", "-").replace("\u2013", "-")
+    correspondance = re.match(r"^[+-]?(?:[0-9][0-9.,]*|[.,][0-9]+)", texte)
+    if not correspondance:
+        return None
+    nombre = correspondance.group(0)
+    # Ce qui suit le nombre ne peut être qu'une unité (« % », « M€ », « ans ») :
+    # un chiffre ou un opérateur signale une expression, pas un nombre.
+    if re.search(r"[0-9+*/^=()-]", texte[correspondance.end():]):
+        return None
+    if "," in nombre and "." in nombre:
+        # Les deux présents : le dernier est la décimale, l'autre sépare les
+        # milliers (« 1.234,5 » ou « 1,234.5 »).
+        decimale = "," if nombre.rfind(",") > nombre.rfind(".") else "."
+        milliers = "." if decimale == "," else ","
+        nombre = nombre.replace(milliers, "").replace(decimale, ".")
+    elif nombre.count(",") > 1:
+        nombre = nombre.replace(",", "")  # « 1,234,567 » : milliers
+    elif nombre.count(".") > 1:
+        nombre = nombre.replace(".", "")  # « 1.234.567 » : milliers
+    else:
+        nombre = nombre.replace(",", ".")
+    try:
+        return float(nombre)
+    except ValueError:
+        return None
+
+
 def parser(texte: str, symboles: List[str]):
-    """Parse une saisie étudiante en expression SymPy. Renvoie None si invalide."""
+    """Parse une saisie étudiante en expression SymPy. Renvoie None si invalide.
+
+    `e` et `ln` sont ajoutés au dictionnaire local : un étudiant qui écrit
+    `e^x` ou `ln(x)` écrit ce que le cours lui a appris, et sa réponse doit
+    être acceptée au même titre que `exp(x)` ou `log(x)`.
+    """
     local = {s: sp.Symbol(s) for s in symboles}
+    local.setdefault("e", sp.E)
+    local.setdefault("ln", sp.log)
     texte = texte.strip().replace(",", ".").replace("÷", "/").replace("×", "*")
     if not texte:
         return None
@@ -195,14 +244,14 @@ def executer(cle: str, generateur: Callable[[], Exercice]) -> None:
 
     with colonne_saisie:
         if ex.type_reponse == "num":
-            saisie = st.number_input(
+            # Champ texte et non `number_input` : ce dernier laisse le navigateur
+            # décider du séparateur décimal, et refuse le point sur un poste
+            # réglé en français. Ici, virgule et point sont acceptés.
+            saisie = st.text_input(
                 f"{ex.libelle} {('(' + ex.unite + ')') if ex.unite else ''}",
-                value=None,
-                step=None,
-                format="%.4f",
                 key=f"{cle}_input",
                 disabled=st.session_state[k_fait],
-                placeholder="Saisissez un nombre",
+                placeholder="Saisissez un nombre — virgule ou point, au choix",
             )
         elif ex.type_reponse == "qcm":
             saisie = st.radio(
@@ -220,8 +269,8 @@ def executer(cle: str, generateur: Callable[[], Exercice]) -> None:
                 placeholder="Par exemple : 5x/6",
             )
             st.caption(
-                "Syntaxe : `5x/6`, `(a+b)/c`, `x^2` ou `x**2`. "
-                "Les écritures équivalentes sont acceptées."
+                "Syntaxe : `5x/6`, `(a+b)/c`, `x^2` ou `x**2`, `e^x` ou `exp(x)`, "
+                "`ln(x)`. Les écritures équivalentes sont acceptées."
             )
 
     with colonne_boutons:
@@ -257,8 +306,14 @@ def executer(cle: str, generateur: Callable[[], Exercice]) -> None:
             st.error(f"❌ Réponse attendue : **{ex.reponse}**")
             if diag:
                 st.warning(f"🔍 **Diagnostic :** {diag}")
+    elif ex.type_reponse == "num" and parser_nombre(saisie) is None:
+        st.warning(
+            "Nombre illisible (lettres, symbole inattendu ?). Écrivez par exemple "
+            "`12,5` ou `12.5`. Ce n'est pas compté comme une erreur — voici la "
+            "méthode."
+        )
     elif ex.type_reponse == "num":
-        juste, diagnostic = analyser_numerique(ex, float(saisie))
+        juste, diagnostic = analyser_numerique(ex, parser_nombre(saisie))
         if juste:
             st.success(
                 f"✅ Correct : {_reponse_lisible(ex)}. "
@@ -338,12 +393,12 @@ def executer_vrai_faux(cle: str, regles: List[dict]) -> None:
         )
     with colonne_droite:
         st.caption("Si vous répondez « Fausse », proposez un contre-exemple :")
-        st.number_input(
-            "a =", value=1.0, step=1.0, key=f"{cle}_a",
+        st.text_input(
+            "a =", value="1", key=f"{cle}_a",
             disabled=st.session_state[k_fait],
         )
-        st.number_input(
-            "b =", value=1.0, step=1.0, key=f"{cle}_b",
+        st.text_input(
+            "b =", value="1", key=f"{cle}_b",
             disabled=st.session_state[k_fait],
         )
 
@@ -361,8 +416,8 @@ def executer_vrai_faux(cle: str, regles: List[dict]) -> None:
     st.markdown("---")
 
     verdict = st.session_state.get(f"{cle}_verdict")
-    val_a = st.session_state.get(f"{cle}_a", 1.0)
-    val_b = st.session_state.get(f"{cle}_b", 1.0)
+    val_a = parser_nombre(st.session_state.get(f"{cle}_a", "1"))
+    val_b = parser_nombre(st.session_state.get(f"{cle}_b", "1"))
     dit_vraie = verdict == "Vraie pour tous les nombres"
 
     if verdict is None:
@@ -379,7 +434,13 @@ def executer_vrai_faux(cle: str, regles: List[dict]) -> None:
         )
 
     # Test du contre-exemple proposé
-    if not regle["vraie"] and verdict == "Fausse":
+    if not regle["vraie"] and verdict == "Fausse" and (val_a is None or val_b is None):
+        st.markdown("#### 🔬 Test de votre contre-exemple")
+        st.warning(
+            "Une des deux valeurs est illisible : écrivez un nombre, avec une "
+            "virgule ou un point pour la décimale."
+        )
+    elif not regle["vraie"] and verdict == "Fausse":
         st.markdown("#### 🔬 Test de votre contre-exemple")
         try:
             g = regle["gauche"](val_a, val_b)

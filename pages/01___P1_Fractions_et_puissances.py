@@ -88,6 +88,56 @@ RUBRIQUES = [
     ("action sociale", "aide alimentaire"),
 ]
 
+#: (total, unité, (ensemble, sous-ensemble intermédiaire), poste final).
+#: Les emboîtements ne portent pas que sur des budgets : un temps de travail
+#: ou un effectif se découpe exactement de la même façon.
+EMBOITEMENTS = [
+    (240, "M€", ("le budget annuel de Villeneuve", "la rubrique transports"),
+     "les mobilités douces"),
+    (200, "M€", ("le budget annuel de Villeneuve", "la rubrique culture"),
+     "la lecture publique"),
+    (1_800, "heures", ("le temps de travail annuel d'un agent",
+                       "les tâches administratives"), "la rédaction de rapports"),
+    (600, "agents", ("l'effectif de la collectivité", "la direction technique"),
+     "l'entretien des espaces verts"),
+    (450, "hectares", ("la surface communale", "les espaces naturels"),
+     "les zones humides protégées"),
+]
+
+#: Fractions courantes en toutes lettres : l'énoncé ne les écrit pas toujours
+#: en chiffres, et traduire les mots fait partie du geste.
+MOTS_FRACTIONS = {
+    Fraction(1, 3): "un tiers",
+    Fraction(1, 4): "un quart",
+    Fraction(1, 5): "un cinquième",
+    Fraction(1, 6): "un sixième",
+    Fraction(1, 8): "un huitième",
+    Fraction(1, 10): "un dixième",
+    Fraction(2, 5): "deux cinquièmes",
+    Fraction(3, 10): "trois dixièmes",
+}
+
+#: (acteur, nature des fonds, unité) pour les intérêts composés.
+PLACEMENTS = [
+    ("la ville de Villeneuve", "réserves", "M€"),
+    ("le centre communal d'action sociale", "excédents", "M€"),
+    ("la fondation de l'université", "dotations", "M€"),
+    ("l'office du tourisme", "provisions", "k€"),
+]
+
+
+def _maj(texte: str) -> str:
+    return texte[:1].upper() + texte[1:]
+
+
+def _dec(valeur) -> str:
+    """Décimale à la française : 1.08 devient 1,08 (1{,}08 en LaTeX)."""
+    return f"{valeur:g}".replace(".", ",")
+
+
+def _dec_latex(valeur) -> str:
+    return f"{valeur:g}".replace(".", "{,}")
+
 
 def _fmt(x: float, n: int = 2) -> str:
     """Formatage à la française."""
@@ -626,62 +676,87 @@ def gen_ordre_de_grandeur() -> Exercice:
 
 
 def gen_fractions_emboitees() -> Exercice:
-    budget = random.choice([180, 200, 240, 250, 300])
+    total, unite, ensemble, sous_ensemble = random.choice(EMBOITEMENTS)
     f1 = random.choice(
         [Fraction(1, 4), Fraction(1, 5), Fraction(1, 6), Fraction(1, 8), Fraction(1, 10)]
     )
     f2 = random.choice(
         [Fraction(1, 3), Fraction(1, 4), Fraction(1, 5), Fraction(2, 5), Fraction(3, 10)]
     )
-    rubrique, sous_rubrique = random.choice(RUBRIQUES)
+    presentation = random.choice(["fractions", "lettres", "pourcentage"])
 
     part = f1 * f2
-    reponse = budget * float(part)
+    reponse = total * float(part)
+
+    def _fraction_latex(fraction):
+        return rf"\dfrac{{{fraction.numerator}}}{{{fraction.denominator}}}"
+
+    if presentation == "lettres":
+        premiere = MOTS_FRACTIONS.get(f1, f"${_fraction_latex(f1)}$")
+        seconde = MOTS_FRACTIONS.get(f2, f"${_fraction_latex(f2)}$")
+        lecture = (
+            f"« {premiere} » s'écrit ${_fraction_latex(f1)}$ et « {seconde} » "
+            f"${_fraction_latex(f2)}$ : le premier geste est de traduire les mots en "
+            "fractions."
+        )
+    elif presentation == "pourcentage":
+        premiere = f"**{_fmt(100 * float(f1), 1)} %**"
+        seconde = f"**{_fmt(100 * float(f2), 1)} %**"
+        lecture = (
+            f"Les pourcentages sont des fractions déguisées : "
+            f"{_fmt(100 * float(f1), 1)} % vaut ${_fraction_latex(f1)}$ et "
+            f"{_fmt(100 * float(f2), 1)} % vaut ${_fraction_latex(f2)}$. Le "
+            "raisonnement est identique."
+        )
+    else:
+        premiere = f"${_fraction_latex(f1)}$"
+        seconde = f"${_fraction_latex(f2)}$"
+        lecture = "Les deux parts sont données sous forme de fractions."
 
     enonce = f"""
-> **Villeneuve.** Le budget annuel est de **{budget} M€**.
-> $\\dfrac{{{f1.numerator}}}{{{f1.denominator}}}$ de ce budget va à la rubrique
-> **{rubrique}**, et $\\dfrac{{{f2.numerator}}}{{{f2.denominator}}}$ du budget
-> {rubrique} va au poste **{sous_rubrique}**.
+> {_maj(ensemble[0])} représente **{_fmt(total, 0)} {unite}**.
+> Sur ce total, {premiere} va à **{ensemble[1]}**, et {seconde} de
+> {ensemble[1]} va à **{sous_ensemble}**.
 >
-> Quel montant, en millions d'euros, est consacré au poste *{sous_rubrique}* ?
+> Quel montant, en {unite}, revient à *{sous_ensemble}* ?
 """
 
     etapes = [
         Etape(
             "Identifier — « une part d'une part » se multiplie",
-            "La seconde fraction ne porte pas sur le budget total mais sur la "
-            "rubrique. Prendre une fraction **d'une** fraction, c'est **multiplier** "
-            "les deux — jamais les additionner.",
+            f"{lecture} La seconde fraction ne porte pas sur le total mais sur "
+            f"{ensemble[1]}. Prendre une fraction **d'une** fraction, c'est "
+            "**multiplier** les deux — jamais les additionner.",
         ),
         Etape(
-            "Calculer la part du budget total",
+            "Calculer la part du total",
             "On multiplie en ligne, numérateurs entre eux et dénominateurs entre eux.",
             rf"\frac{{{f1.numerator}}}{{{f1.denominator}}} \times "
             rf"\frac{{{f2.numerator}}}{{{f2.denominator}}} = "
-            rf"\frac{{{f1.numerator * f2.numerator}}}{{{f1.denominator * f2.denominator}}} = "
+            rf"\frac{{{f1.numerator * f2.numerator}}}"
+            rf"{{{f1.denominator * f2.denominator}}} = "
             rf"\frac{{{part.numerator}}}{{{part.denominator}}}",
         ),
         Etape(
-            "Appliquer cette part au budget",
-            f"Il reste à prendre cette fraction de {budget} M€.",
-            rf"\frac{{{part.numerator}}}{{{part.denominator}}} \times {budget} = "
-            rf"{_fmt(reponse).replace(',','.')}\ \text{{M€}}",
+            "Appliquer cette part au total",
+            f"Il reste à prendre cette fraction de {_fmt(total, 0)} {unite}.",
+            rf"\frac{{{part.numerator}}}{{{part.denominator}}} \times {total} = "
+            rf"{_fmt(reponse).replace(',', '.')}",
         ),
         Etape(
             "Vérifier — encadrement rapide",
-            f"Le poste *{sous_rubrique}* doit être plus petit que la rubrique "
-            f"*{rubrique}* (soit {_fmt(budget * float(f1))} M€) et beaucoup plus petit "
-            f"que le budget total ({budget} M€). "
-            f"{_fmt(reponse)} M€ satisfait bien ce double encadrement.",
+            f"Le poste *{sous_ensemble}* doit être plus petit que {ensemble[1]} "
+            f"(soit {_fmt(total * float(f1))} {unite}) et beaucoup plus petit que le "
+            f"total ({_fmt(total, 0)} {unite}). {_fmt(reponse)} {unite} satisfait bien "
+            "ce double encadrement.",
         ),
         Etape(
             "Interpréter — l'effet d'emboîtement",
             f"Deux fractions d'apparence modeste produisent une part très faible : "
-            f"$\\frac{{{part.numerator}}}{{{part.denominator}}}$ du budget, soit "
-            f"environ **{_fmt(100 * float(part), 1)} %** du total. C'est le mécanisme "
-            "qui explique pourquoi un poste jugé « prioritaire » dans le discours "
-            "politique peut peser très peu dans les comptes.",
+            f"$\\frac{{{part.numerator}}}{{{part.denominator}}}$ du total, soit "
+            f"environ **{_fmt(100 * float(part), 1)} %**. C'est le mécanisme qui "
+            "explique pourquoi un poste jugé « prioritaire » dans le discours peut "
+            "peser très peu dans les comptes.",
         ),
     ]
 
@@ -689,29 +764,28 @@ def gen_fractions_emboitees() -> Exercice:
         enonce=enonce,
         reponse=reponse,
         etapes=etapes,
-        libelle=f"Budget du poste « {sous_rubrique} »",
-        unite="M€",
+        libelle=f"Part de « {sous_ensemble} »",
+        unite=unite,
         tolerance=0.01,
         indice="Une fraction d'une fraction : la question est de savoir si l'on "
         "additionne ou si l'on multiplie. Testez sur un cas simple : "
         "la moitié d'une moitié, est-ce un ou un quart ?",
         pieges=[
             (
-                budget * float(f1 + f2),
+                total * float(f1 + f2),
                 "Vous avez **additionné** les deux fractions. Or on cherche une part "
                 "*d'une* part : la moitié d'une moitié fait un quart, pas un. "
                 "On multiplie.",
             ),
             (
-                budget * float(f2),
-                f"Vous avez appliqué $\\frac{{{f2.numerator}}}{{{f2.denominator}}}$ au "
-                "**budget total** alors qu'elle porte sur la rubrique "
-                f"*{rubrique}* seulement.",
+                total * float(f2),
+                f"Vous avez appliqué la seconde fraction au **total** alors qu'elle "
+                f"porte sur {ensemble[1]} seulement.",
             ),
             (
-                budget * float(f1),
-                f"C'est le budget de la rubrique *{rubrique}* entière, pas celui du "
-                f"poste *{sous_rubrique}*. Il reste une fraction à appliquer.",
+                total * float(f1),
+                f"C'est la part de {ensemble[1]} tout entier, pas celle de "
+                f"*{sous_ensemble}*. Il reste une fraction à appliquer.",
             ),
         ],
     )
@@ -963,7 +1037,9 @@ def gen_fractions_operations() -> Exercice:
 
 
 def gen_puissances() -> Exercice:
-    modele = random.choice(["imbriquee", "produit_quotient"])
+    modele = random.choice(
+        ["imbriquee", "produit_quotient", "inverse", "trois_facteurs"]
+    )
     m, n = random.sample([2, 3, 4, 5], 2)
     p = random.choice([2, 3, 4, 5, 6])
     base = random.choice([2, 3, 5, 6, 7, 10])
@@ -981,39 +1057,127 @@ def gen_puissances() -> Exercice:
             Etape(
                 "Traiter la puissance de puissance",
                 f"$(x^m)^n = x^{{mn}}$, donc ici ${base}^{{{m} \\times {n}}}$.",
-                rf"\left({base}^{{{m}}}\right)^{{{n}}} = {base}^{{{m*n}}}",
+                rf"\left({base}^{{{m}}}\right)^{{{n}}} = {base}^{{{m * n}}}",
             ),
             Etape(
                 "Multiplier les deux puissances",
                 "$x^m \\times x^n = x^{m+n}$ : on additionne, en tenant compte du "
                 "signe négatif.",
-                rf"{base}^{{{m*n}}} \times {base}^{{-{p}}} = "
-                rf"{base}^{{{m*n} - {p}}} = {base}^{{{reponse}}}",
+                rf"{base}^{{{m * n}}} \times {base}^{{-{p}}} = "
+                rf"{base}^{{{m * n} - {p}}} = {base}^{{{reponse}}}",
             ),
             Etape(
                 "Vérifier — retour à la définition",
                 "En cas de doute, réécrivez la puissance comme une multiplication "
                 f"répétée : $({base}^{m})^{n}$ signifie « ${base}^{m}$ multiplié "
-                f"{n} fois par lui-même », soit {m} × {n} = {m*n} facteurs "
+                f"{n} fois par lui-même », soit {m} × {n} = {m * n} facteurs "
                 f"${base}$. La règle se retrouve ainsi sans l'avoir apprise.",
             ),
             Etape(
                 "Interpréter",
-                f"Les exposants négatifs ne sont pas une bizarrerie : ${base}^{{-{p}}}$ "
-                "est une **division**. Toute cette mécanique sera reprise au "
-                "semestre pour les fonctions puissances et les rendements d'échelle.",
+                f"Les exposants négatifs ne sont pas une bizarrerie : "
+                f"${base}^{{-{p}}}$ est une **division**. Toute cette mécanique sera "
+                "reprise au semestre pour les fonctions puissances.",
             ),
         ]
         pieges = [
-            (m + n - p,
-             f"Vous avez traité $({base}^{{{m}}})^{{{n}}}$ comme ${base}^{{{m}+{n}}}$. "
-             "Pour une puissance **de** puissance, on **multiplie** les exposants."),
-            (m * n + p,
-             f"Erreur de signe : ${base}^{{-{p}}}$ correspond à une soustraction "
-             "de l'exposant, pas à une addition."),
+            (
+                m + n - p,
+                f"Vous avez traité $({base}^{{{m}}})^{{{n}}}$ comme "
+                f"${base}^{{{m}+{n}}}$. Pour une puissance **de** puissance, on "
+                "**multiplie** les exposants.",
+            ),
+            (
+                m * n + p,
+                f"Erreur de signe : ${base}^{{-{p}}}$ correspond à une soustraction "
+                "de l'exposant, pas à une addition.",
+            ),
+        ]
+    elif modele == "inverse":
+        expression = rf"\frac{{{base}^{{{m}}}}}{{{base}^{{-{p}}}}}"
+        reponse = m + p
+        etapes = [
+            Etape(
+                "Identifier — un exposant négatif au dénominateur",
+                f"Deux signes moins vont se rencontrer : diviser fait **soustraire** "
+                f"l'exposant du dénominateur, et cet exposant vaut lui-même $-{p}$. "
+                "Soustraire un négatif, c'est ajouter.",
+            ),
+            Etape(
+                "Appliquer la règle du quotient",
+                "",
+                rf"\frac{{{base}^{{{m}}}}}{{{base}^{{-{p}}}}} = "
+                rf"{base}^{{{m} - (-{p})}} = {base}^{{{m} + {p}}}",
+            ),
+            Etape(
+                "Vérifier — par l'autre chemin",
+                f"$\\dfrac{{1}}{{{base}^{{-{p}}}}} = {base}^{{{p}}}$ : diviser par "
+                f"l'inverse revient à multiplier. On retrouve "
+                f"${base}^{{{m}}} \\times {base}^{{{p}}} = {base}^{{{m + p}}}$. ✓",
+            ),
+            Etape(
+                "Interpréter",
+                "Un exposant négatif n'est pas un nombre négatif : "
+                f"${base}^{{-{p}}}$ est un nombre **positif**, simplement plus petit "
+                "que 1. La confusion entre les deux est fréquente et coûteuse.",
+            ),
+        ]
+        pieges = [
+            (
+                m - p,
+                "Vous avez soustrait l'exposant sans tenir compte de son signe : "
+                f"soustraire $-{p}$, c'est **ajouter** ${p}$.",
+            ),
+            (
+                -m - p,
+                "Le signe du premier exposant n'a pas changé : seul celui du "
+                "dénominateur était négatif.",
+            ),
+        ]
+    elif modele == "trois_facteurs":
+        expression = (
+            rf"{base}^{{{m}}} \times {base}^{{{n}}} \times {base}^{{-{p}}}"
+        )
+        reponse = m + n - p
+        etapes = [
+            Etape(
+                "Identifier — une seule règle, appliquée deux fois",
+                "Un produit de puissances de **même base** fait additionner les "
+                "exposants, quel que soit leur nombre. Les signes se gèrent "
+                "naturellement dans la somme.",
+            ),
+            Etape(
+                "Additionner les trois exposants",
+                "",
+                rf"{base}^{{{m} + {n} + (-{p})}} = {base}^{{{reponse}}}",
+            ),
+            Etape(
+                "Vérifier — l'ordre n'a pas d'importance",
+                "L'addition est commutative : regrouper d'abord les deux premiers "
+                "facteurs ou les deux derniers donne le même exposant. ✓ Ce contrôle "
+                "détecte une erreur de signe.",
+            ),
+            Etape(
+                "Interpréter",
+                "Compter des facteurs, c'est additionner des exposants. Toute la "
+                "mécanique des puissances tient dans cette phrase.",
+            ),
+        ]
+        pieges = [
+            (
+                m + n + p,
+                f"L'exposant $-{p}$ est **négatif** : il se retranche.",
+            ),
+            (
+                m * n - p,
+                "Vous avez multiplié les deux premiers exposants. On ne multiplie les "
+                "exposants que pour une puissance **de** puissance.",
+            ),
         ]
     else:
-        expression = rf"\frac{{{base}^{{{m}}} \times {base}^{{{n}}}}}{{{base}^{{{p}}}}}"
+        expression = (
+            rf"\frac{{{base}^{{{m}}} \times {base}^{{{n}}}}}{{{base}^{{{p}}}}}"
+        )
         reponse = m + n - p
         etapes = [
             Etape(
@@ -1024,13 +1188,13 @@ def gen_puissances() -> Exercice:
             Etape(
                 "Regrouper le numérateur",
                 "On **additionne** les exposants d'un produit.",
-                rf"{base}^{{{m}}} \times {base}^{{{n}}} = {base}^{{{m+n}}}",
+                rf"{base}^{{{m}}} \times {base}^{{{n}}} = {base}^{{{m + n}}}",
             ),
             Etape(
                 "Diviser",
                 "On **soustrait** l'exposant du dénominateur.",
-                rf"\frac{{{base}^{{{m+n}}}}}{{{base}^{{{p}}}}} = "
-                rf"{base}^{{{m+n}-{p}}} = {base}^{{{reponse}}}",
+                rf"\frac{{{base}^{{{m + n}}}}}{{{base}^{{{p}}}}} = "
+                rf"{base}^{{{m + n}-{p}}} = {base}^{{{reponse}}}",
             ),
             Etape(
                 "Vérifier — le cas particulier révélateur",
@@ -1047,11 +1211,12 @@ def gen_puissances() -> Exercice:
             ),
         ]
         pieges = [
-            (m * n - p,
-             f"Vous avez **multiplié** les exposants du produit. "
-             "On ne multiplie les exposants que pour une puissance de puissance."),
-            (m + n + p,
-             "Une **division** fait soustraire l'exposant, pas l'ajouter."),
+            (
+                m * n - p,
+                "Vous avez **multiplié** les exposants du produit. "
+                "On ne multiplie les exposants que pour une puissance de puissance.",
+            ),
+            (m + n + p, "Une **division** fait soustraire l'exposant, pas l'ajouter."),
         ]
 
     enonce = f"""
@@ -1078,38 +1243,106 @@ def gen_puissances() -> Exercice:
 
 
 def gen_racines() -> Exercice:
-    k, m = random.choice(
-        [(50, 2), (8, 2), (12, 3), (18, 2), (27, 3), (32, 2), (20, 5),
-         (45, 5), (75, 3), (98, 2), (24, 6), (28, 7), (40, 10)]
-    )
-    reponse = float(sp.sqrt(k * m))
+    forme = random.choice(["produit", "quotient", "trois_facteurs"])
+
+    if forme == "quotient":
+        resultat = random.choice([2, 3, 4, 5, 6, 7])
+        diviseur = random.choice([2, 3, 5])
+        dividende = resultat**2 * diviseur
+        reponse = float(resultat)
+        expression = rf"\frac{{\sqrt{{{dividende}}}}}{{\sqrt{{{diviseur}}}}}"
+        regle = (
+            r"\frac{\sqrt{a}}{\sqrt{b}} = \sqrt{\frac{a}{b}} \quad (b > 0)"
+        )
+        lecture = (
+            "La racine traverse aussi le **quotient**, pas seulement le produit. "
+            "On regroupe sous une seule racine, puis on simplifie la fraction."
+        )
+        calcul = (
+            rf"\frac{{\sqrt{{{dividende}}}}}{{\sqrt{{{diviseur}}}}} = "
+            rf"\sqrt{{\frac{{{dividende}}}{{{diviseur}}}}} = "
+            rf"\sqrt{{{resultat ** 2}}} = {resultat}"
+        )
+        pieges = [
+            (
+                float(dividende) / diviseur,
+                "Vous avez simplifié la fraction sous la racine mais oublié de "
+                f"prendre la racine : il reste $\\sqrt{{{resultat ** 2}}}$.",
+            ),
+            (
+                float(sp.sqrt(dividende) - sp.sqrt(diviseur)),
+                "Un quotient ne devient pas une différence : la racine traverse la "
+                "division, elle ne la transforme pas.",
+            ),
+        ]
+    elif forme == "trois_facteurs":
+        a, b, c = random.choice([(2, 3, 6), (2, 2, 9), (3, 3, 4), (5, 2, 10), (2, 5, 10)])
+        produit = a * b * c
+        reponse = float(sp.sqrt(produit))
+        expression = rf"\sqrt{{{a}}} \times \sqrt{{{b}}} \times \sqrt{{{c}}}"
+        regle = r"\sqrt{a} \times \sqrt{b} = \sqrt{ab}"
+        lecture = (
+            "La règle s'applique autant de fois qu'il y a de facteurs : on peut "
+            "tout regrouper sous une seule racine avant de chercher quoi que ce soit."
+        )
+        calcul = (
+            rf"\sqrt{{{a}}} \times \sqrt{{{b}}} \times \sqrt{{{c}}} = "
+            rf"\sqrt{{{a} \times {b} \times {c}}} = \sqrt{{{produit}}} "
+            rf"= {int(reponse)}"
+        )
+        pieges = [
+            (
+                float(produit),
+                "Vous avez multiplié les nombres **sous** la racine sans prendre la "
+                f"racine à la fin : il reste $\\sqrt{{{produit}}}$.",
+            ),
+            (
+                float(sp.sqrt(a) + sp.sqrt(b) + sp.sqrt(c)),
+                "Vous avez additionné les racines alors que l'énoncé demande un "
+                "produit.",
+            ),
+        ]
+    else:
+        k, m = random.choice(
+            [(50, 2), (8, 2), (12, 3), (18, 2), (27, 3), (32, 2), (20, 5),
+             (45, 5), (75, 3), (98, 2), (24, 6), (28, 7), (40, 10)]
+        )
+        reponse = float(sp.sqrt(k * m))
+        expression = rf"\sqrt{{{k}}} \times \sqrt{{{m}}}"
+        regle = r"\sqrt{a} \times \sqrt{b} = \sqrt{ab}"
+        lecture = (
+            "La propriété est vraie pour $a, b \\geqslant 0$. C'est ce qui rend le "
+            "calcul faisable de tête : on regroupe **avant** de chercher la racine."
+        )
+        calcul = (
+            rf"\sqrt{{{k}}} \times \sqrt{{{m}}} = \sqrt{{{k} \times {m}}} = "
+            rf"\sqrt{{{k * m}}} = {int(reponse)}"
+        )
+        pieges = [
+            (
+                float(sp.sqrt(k) + sp.sqrt(m)),
+                "Vous avez **additionné** les racines alors que l'énoncé demande un "
+                "produit. Et même pour une somme, la racine ne se distribue pas.",
+            ),
+            (
+                float(k * m),
+                "Vous avez multiplié les nombres **sous** la racine sans prendre la "
+                f"racine à la fin : il reste $\\sqrt{{{k * m}}}$.",
+            ),
+        ]
 
     enonce = f"""
 > **Sans calculatrice**, calculez :
 >
-> $$ \\sqrt{{{k}}} \\times \\sqrt{{{m}}} $$
+> $$ {expression} $$
 """
 
     etapes = [
-        Etape(
-            "Identifier — la racine traverse le produit",
-            "La propriété $\\sqrt{a} \\times \\sqrt{b} = \\sqrt{ab}$ est vraie "
-            "(pour $a, b \\geqslant 0$). C'est ce qui rend le calcul faisable "
-            "de tête : on regroupe **avant** de chercher la racine.",
-        ),
-        Etape(
-            "Regrouper sous une seule racine",
-            "",
-            rf"\sqrt{{{k}}} \times \sqrt{{{m}}} = \sqrt{{{k} \times {m}}} = \sqrt{{{k*m}}}",
-        ),
-        Etape(
-            "Reconnaître le carré parfait",
-            f"${k*m}$ est un carré parfait : ${int(reponse)}^2 = {k*m}$.",
-            rf"\sqrt{{{k*m}}} = {int(reponse)}",
-        ),
+        Etape("Identifier — la racine traverse produits et quotients", lecture, regle),
+        Etape("Regrouper sous une seule racine, puis conclure", "", calcul),
         Etape(
             "Vérifier — ce que la racine ne fait PAS",
-            "Le produit se traverse, **la somme non** : "
+            "Le produit et le quotient se traversent, **la somme non** : "
             "$\\sqrt{a+b} \\neq \\sqrt{a} + \\sqrt{b}$. "
             "Test : $\\sqrt{2+2} = 2$, alors que "
             "$\\sqrt{2} + \\sqrt{2} \\approx 2{,}83$. "
@@ -1132,14 +1365,7 @@ def gen_racines() -> Exercice:
         tolerance=0.005,
         indice="Ne cherchez pas chaque racine séparément : regroupez d'abord "
         "sous une seule racine.",
-        pieges=[
-            (float(sp.sqrt(k) + sp.sqrt(m)),
-             "Vous avez **additionné** les racines alors que l'énoncé demande un "
-             "produit. Et même pour une somme, la racine ne se distribue pas."),
-            (float(k * m),
-             "Vous avez multiplié les nombres **sous** la racine sans prendre la "
-             f"racine à la fin : il reste à calculer $\\sqrt{{{k*m}}}$."),
-        ],
+        pieges=pieges,
     )
 
 
@@ -1147,52 +1373,86 @@ def gen_racines() -> Exercice:
 
 
 def gen_placement() -> Exercice:
+    acteur, grandeur, unite = random.choice(PLACEMENTS)
+    presentation = random.choice(["formule", "taux", "coefficient"])
     # On retire tant que l'écart entre intérêts composés et intérêts simples
     # reste trop faible : le diagnostic de l'erreur ne serait pas fiable, et
     # la différence entre les deux logiques ne serait pas visible.
     while True:
-        capital = random.choice([4, 5, 6, 8, 10])
+        capital = random.choice([4, 5, 6, 8, 10, 12])
         taux = random.choice([4, 5, 6, 8])
-        annees = random.choice([3, 4, 5])
+        annees = random.choice([3, 4, 5, 6])
         coeff = 1 + taux / 100
         reponse = capital * coeff**annees
         simple = capital * (1 + annees * taux / 100)
         if reponse - simple > 0.02:
             break
 
+    if presentation == "formule":
+        donnee = (
+            f"> **{_maj(acteur)}** place **{capital} {unite}** de {grandeur} à un taux "
+            f"de **{taux} % par an**. La valeur du placement après $n$ années est\n>\n"
+            f"> $$ V = {capital} \\times ({_dec_latex(coeff)})^{{n}} $$"
+        )
+        lecture = (
+            f"La formule est donnée : le coefficient ${_dec_latex(coeff)}$ y figure "
+            "déjà, il n'y "
+            "a qu'à substituer."
+        )
+    elif presentation == "taux":
+        donnee = (
+            f"> **{_maj(acteur)}** place **{capital} {unite}** de {grandeur} à un taux "
+            f"de **{taux} % par an**, les intérêts étant eux-mêmes replacés chaque "
+            "année."
+        )
+        lecture = (
+            f"Le taux de {taux} % doit d'abord être traduit en coefficient "
+            f"multiplicateur : ${_dec_latex(coeff)}$. « Les intérêts sont replacés » est la "
+            "formule qui signale des intérêts **composés**."
+        )
+    else:
+        donnee = (
+            f"> **{_maj(acteur)}** place **{capital} {unite}** de {grandeur}. Chaque "
+            f"année, la valeur du placement est **multipliée par {_dec(coeff)}**."
+        )
+        lecture = (
+            f"Le coefficient est donné directement : ${_dec_latex(coeff)}$, ce qui "
+            f"correspond à "
+            f"un taux de {taux} % par an."
+        )
+
     enonce = f"""
-> **Villeneuve.** La ville place **{capital} M€** de réserves à un taux de
-> **{taux} % par an**. La valeur du placement après $n$ années est
-> $V = {capital} \\times ({coeff})^{{n}}$ millions d'euros.
+{donnee}
 >
-> Calculez $V$ après **{annees} ans**, arrondi au centième de million.
+> Que vaut le placement après **{annees} ans** ? Arrondissez au centième.
 """
 
     etapes = [
         Etape(
             "Identifier — pourquoi une puissance et non un produit",
-            f"Chaque année, le capital est multiplié par {coeff}. Après {annees} ans, "
-            f"il a été multiplié {annees} fois par ce même nombre : "
-            "c'est la définition d'une puissance. Les intérêts de l'année 2 "
-            "portent sur le capital **augmenté** des intérêts de l'année 1.",
+            f"{lecture} Après {annees} ans, le capital a été multiplié {annees} fois "
+            "par ce même nombre : c'est la définition d'une puissance. Les intérêts "
+            "de l'année 2 portent sur le capital **augmenté** des intérêts de "
+            "l'année 1.",
         ),
         Etape(
             "Poser le calcul",
             "",
-            rf"V = {capital} \times ({coeff})^{{{annees}}}",
+            rf"V = {capital} \times ({_dec_latex(coeff)})^{{{annees}}}",
         ),
         Etape(
             "Calculer la puissance, puis multiplier",
-            f"$({coeff})^{{{annees}}} \\approx {coeff**annees:.4f}$.",
-            rf"V \approx {capital} \times {coeff**annees:.4f} "
-            rf"\approx {reponse:.2f}\ \text{{M€}}",
+            f"$({_dec_latex(coeff)})^{{{annees}}} \\approx "
+            f"{_dec_latex(round(coeff ** annees, 4))}$.",
+            rf"V \approx {capital} \times {_dec_latex(round(coeff ** annees, 4))} "
+            rf"\approx {_dec_latex(round(reponse, 2))}\ \text{{{unite}}}",
         ),
         Etape(
             "Vérifier — comparer aux intérêts simples",
             f"Avec des intérêts **simples**, on aurait "
-            f"{capital} × (1 + {annees} × {taux/100}) = "
-            f"{simple:.2f} M€. "
-            f"Le résultat composé ({reponse:.2f} M€) doit être **légèrement "
+            f"{capital} × (1 + {annees} × {_dec(taux / 100)}) = "
+            f"{_fmt(simple)} {unite}. "
+            f"Le résultat composé ({_fmt(reponse)} {unite}) doit être **légèrement "
             "supérieur** : si vous trouvez moins, il y a une erreur.",
         ),
         Etape(
@@ -1208,21 +1468,27 @@ def gen_placement() -> Exercice:
         reponse=reponse,
         etapes=etapes,
         libelle=f"Valeur après {annees} ans",
-        unite="M€",
-        tolerance_abs=0.006,  # accepte un arrondi au centième de million
+        unite=unite,
+        tolerance_abs=0.006,  # accepte un arrondi au centième
         indice=f"Le taux ne s'ajoute pas {annees} fois : il se multiplie "
         f"{annees} fois.",
         pieges=[
-            (simple,
-             "Vous avez calculé des **intérêts simples** : le taux appliqué "
-             f"{annees} fois au capital initial. Or les intérêts de l'année 2 "
-             "portent aussi sur les intérêts de l'année 1 — d'où une puissance."),
-            (capital * (taux / 100) ** annees,
-             "Vous avez oublié le **1 +** : le coefficient multiplicateur d'une "
-             f"hausse de {taux} % vaut {coeff}, pas {taux/100}."),
-            (capital * coeff,
-             "Vous n'avez appliqué le coefficient qu'**une seule fois** : "
-             f"il faut l'appliquer {annees} fois."),
+            (
+                simple,
+                "Vous avez calculé des **intérêts simples** : le taux appliqué "
+                f"{annees} fois au capital initial. Or les intérêts de l'année 2 "
+                "portent aussi sur les intérêts de l'année 1 — d'où une puissance.",
+            ),
+            (
+                capital * (taux / 100) ** annees,
+                "Vous avez oublié le **1 +** : le coefficient multiplicateur d'une "
+                f"hausse de {taux} % vaut {_dec(coeff)}, pas {_dec(taux / 100)}.",
+            ),
+            (
+                capital * coeff,
+                "Vous n'avez appliqué le coefficient qu'**une seule fois** : "
+                f"il faut l'appliquer {annees} fois.",
+            ),
         ],
     )
 
