@@ -23,7 +23,8 @@ with st.expander("📖 Contexte & objectifs", expanded=True):
     st.markdown(
         """
 ### 🎯 Ce que cette série entraîne
-Utiliser les propriétés du logarithme, **résoudre une équation dont l'inconnue est
+Appliquer la **définition** du logarithme, **lire les graphes** de exp et ln,
+utiliser les propriétés du logarithme, **résoudre une équation dont l'inconnue est
 en exposant**, calculer un **temps de doublement** et un **taux de croissance annuel
 moyen**.
 
@@ -75,6 +76,343 @@ def _maj(texte: str) -> str:
 def _facteur(valeur) -> str:
     """« 3 » plutôt que « 3,0 », « 1,5 » quand la décimale existe."""
     return _fr(valeur, 0 if float(valeur).is_integer() else 1)
+
+
+# --- 0a. La définition : ln défait exp -------------------------------------
+
+
+def gen_definition() -> Exercice:
+    modele = random.choice(
+        ["ln_exp", "exp_ln", "valeur_remarquable", "equation_exp", "equation_ln"]
+    )
+
+    if modele == "ln_exp":
+        n = random.choice([2, 3, 4, 5, 6, 7, 1.5, 2.5])
+        expression = rf"\ln\!\left(e^{{{L(n)}}}\right)"
+        consigne = "Calculez, **sans calculatrice** :"
+        reponse = float(n)
+        regle = r"\ln(e^{a}) = a"
+        lecture = (
+            "Le logarithme **défait** l'exponentielle : appliquer $\\ln$ juste après "
+            "$e^{\\cdots}$ revient à ne rien faire. Il ne reste que l'exposant."
+        )
+        calcul = rf"\ln\!\left(e^{{{L(n)}}}\right) = {L(n)}"
+        verif = (
+            f"Par définition, $\\ln x = y \\iff e^{{y}} = x$. Ici on cherche $y$ tel que "
+            f"$e^{{y}} = e^{{{L(n)}}}$ : c'est bien $y = {L(n)}$."
+        )
+        pieges = [
+            (math.exp(n), "Vous avez calculé $e^{" + L(n) + "}$ et oublié le "
+             "logarithme. Le $\\ln$ **défait** l'exponentielle : il rend l'exposant."),
+        ]
+    elif modele == "exp_ln":
+        a = random.choice([3, 5, 7, 8, 9, 12, 20])
+        expression = rf"e^{{\ln {a}}}"
+        consigne = "Calculez, **sans calculatrice** :"
+        reponse = float(a)
+        regle = r"e^{\ln a} = a \quad (a > 0)"
+        lecture = (
+            "Dans l'autre sens, l'exponentielle **défait** le logarithme : "
+            f"$\\ln {a}$ est par définition le nombre dont l'exponentielle vaut ${a}$."
+        )
+        calcul = rf"e^{{\ln {a}}} = {a}"
+        verif = (
+            f"À la calculatrice : $\\ln {a} \\approx {_fr(math.log(a), 4)}$, et "
+            f"$e^{{{_fr(math.log(a), 4)}}} \\approx {a}$. ✓"
+        )
+        pieges = [
+            (math.log(a), f"Vous avez donné $\\ln {a}$. Il restait à appliquer "
+             "l'exponentielle, qui défait le logarithme."),
+        ]
+    elif modele == "valeur_remarquable":
+        cas = random.choice(["un", "e"])
+        if cas == "un":
+            expression, reponse = r"\ln 1", 0.0
+            regle = r"\ln 1 = 0 \quad \text{car} \quad e^{0} = 1"
+            lecture = "On cherche l'exposant qui donne $1$ : c'est $0$, puisque $e^0 = 1$."
+            calcul = r"\ln 1 = 0"
+            pieges = [(1.0, "$e^0 = 1$, donc c'est l'exposant $0$ qui donne $1$ : "
+                       "$\\ln 1 = 0$, pas $1$.")]
+        else:
+            expression, reponse = r"\ln e", 1.0
+            regle = r"\ln e = 1 \quad \text{car} \quad e^{1} = e"
+            lecture = "On cherche l'exposant qui donne $e$ : c'est $1$, puisque $e^1 = e$."
+            calcul = r"\ln e = 1"
+            pieges = [(math.e, "Vous avez donné la valeur de $e$. On demande "
+                       "l'**exposant** qui donne $e$, c'est-à-dire $1$.")]
+        consigne = "Calculez, **sans calculatrice** :"
+        verif = "Ces deux valeurs se lisent aussi sur le graphe de $\\ln$ : il passe par $(1\\,;0)$ et par $(e\\,;1)$."
+    elif modele == "equation_exp":
+        c = random.choice([2, 3, 5, 10, 20, 50])
+        expression = rf"e^{{x}} = {c}"
+        consigne = "Résolvez l'équation suivante. Donnez $x$ à $0{,}01$ près :"
+        reponse = math.log(c)
+        regle = r"e^{x} = c \iff x = \ln c \quad (c > 0)"
+        lecture = (
+            "L'inconnue est en exposant de $e$ : c'est exactement la situation pour "
+            "laquelle le logarithme a été défini."
+        )
+        calcul = rf"x = \ln {c} \approx {_fr(math.log(c), 4)}"
+        verif = (
+            f"$e^{{{_fr(math.log(c), 4)}}} \\approx {c}$. ✓"
+        )
+        pieges = [
+            (math.exp(c), f"Vous avez calculé $e^{{{c}}}$. On cherche l'exposant "
+             f"qui **donne** ${c}$ : c'est $\\ln {c}$."),
+        ]
+        if abs(c / math.e - math.log(c)) > 0.05:  # sinon le piège serait jugé juste
+            pieges.append((c / math.e, "Diviser par $e$ ne fait pas redescendre "
+                           "l'exposant : il faut appliquer le logarithme."))
+    else:
+        b = random.choice([0.5, 1, 1.5, 2, 3])
+        expression = rf"\ln x = {L(b)}"
+        consigne = "Résolvez l'équation suivante. Donnez $x$ à $0{,}01$ près :"
+        reponse = math.exp(b)
+        regle = r"\ln x = b \iff x = e^{b}"
+        lecture = (
+            "On cherche le nombre dont le logarithme vaut "
+            f"${L(b)}$ : par définition, c'est $e^{{{L(b)}}}$."
+        )
+        calcul = rf"x = e^{{{L(b)}}} \approx {_fr(math.exp(b), 4)}"
+        verif = f"$\\ln({_fr(math.exp(b), 4)}) \\approx {L(b)}$. ✓"
+        pieges = [
+            (math.log(b) if b > 0 else 0.0, f"Vous avez calculé $\\ln {L(b)}$. "
+             "Pour défaire un logarithme, on applique l'**exponentielle**."),
+        ]
+
+    enonce = f"""
+> {consigne}
+>
+> $$ {expression} $$
+"""
+
+    etapes = [
+        Etape("Identifier — ln et exp se défont l'une l'autre", lecture, regle),
+        Etape("Calculer", "", calcul),
+        Etape("Vérifier", verif),
+        Etape(
+            "Interpréter",
+            "Le logarithme est à l'exponentielle ce que la division est à la "
+            "multiplication : l'opération qui la **défait**. Toute la séance repose "
+            "sur cette seule idée.",
+        ),
+    ]
+
+    return Exercice(
+        enonce=enonce,
+        reponse=reponse,
+        etapes=etapes,
+        libelle="Valeur",
+        tolerance_abs=0.01,
+        indice="Posez-vous la question : quel exposant faut-il mettre sur $e$ ?",
+        pieges=pieges,
+    )
+
+
+# --- 0b. Lire les graphes de exp et ln --------------------------------------
+
+#: Les trois courbes tracées dans l'onglet ; leurs étiquettes sont tirées au sort
+#: à chaque énoncé, pour qu'on ne puisse pas répondre de mémoire.
+ETIQUETTES = ["𝒞₁", "𝒞₂", "𝒞₃"]
+
+
+def gen_graphe() -> Exercice:
+    etiquettes = random.sample(ETIQUETTES, 3)
+    noms = dict(zip(["exp", "ln", "id"], etiquettes))
+    modele = random.choice(
+        ["identifier_ln", "identifier_exp", "lire_ln", "lire_exp", "signe", "symetrie"]
+    )
+
+    if modele in ("identifier_ln", "identifier_exp"):
+        cible = "ln" if modele == "identifier_ln" else "exp"
+        fonction = "x \\mapsto \\ln x" if cible == "ln" else "x \\mapsto e^{x}"
+        point = "(1\\,;0)" if cible == "ln" else "(0\\,;1)"
+        enonce = f"""
+> Le graphique ci-dessus représente les fonctions $x \\mapsto e^{{x}}$,
+> $x \\mapsto \\ln x$ et $x \\mapsto x$.
+>
+> Laquelle des trois courbes représente ${fonction}$ ?
+"""
+        bonne = noms[cible]
+        autre = noms["exp" if cible == "ln" else "ln"]
+        etapes = [
+            Etape(
+                "Identifier — chercher un point remarquable",
+                f"La courbe de ${fonction}$ passe par le point ${point}$"
+                + (", et elle n'existe que pour $x > 0$." if cible == "ln"
+                   else ", et elle reste toujours au-dessus de l'axe des abscisses."),
+            ),
+            Etape("Lire", f"Seule la courbe **{bonne}** passe par ${point}$."),
+            Etape(
+                "Vérifier — éliminer les deux autres",
+                f"La droite **{noms['id']}** passe par l'origine $(0\\,;0)$ : c'est "
+                f"$y = x$. La courbe **{autre}** passe par "
+                + ("$(0\\,;1)$ : c'est l'exponentielle." if cible == "ln"
+                   else "$(1\\,;0)$ : c'est le logarithme."),
+            ),
+            Etape(
+                "Interpréter",
+                "Retenir deux points suffit : $(0\\,;1)$ pour $e^x$ (car $e^0 = 1$) et "
+                "$(1\\,;0)$ pour $\\ln x$ (car $\\ln 1 = 0$).",
+            ),
+        ]
+        return_args = dict(
+            reponse=bonne, type_reponse="qcm", options=list(ETIQUETTES),
+            libelle="Courbe",
+            pieges=[(noms["id"], "Cette droite passe par l'origine : c'est $y = x$."),
+                    (autre, "Regardez par quel point passe cette courbe : "
+                     + ("$(0\\,;1)$, c'est donc l'exponentielle." if cible == "ln"
+                        else "$(1\\,;0)$, c'est donc le logarithme."))],
+        )
+    elif modele == "lire_ln":
+        a = random.choice([2, 3, 4, 5])
+        enonce = f"""
+> Le graphique ci-dessus représente les fonctions $x \\mapsto e^{{x}}$
+> (courbe **{noms['exp']}**), $x \\mapsto \\ln x$ (courbe **{noms['ln']}**) et
+> $x \\mapsto x$ (droite **{noms['id']}**).
+>
+> Lisez sur le graphique une valeur approchée de $\\ln {a}$.
+"""
+        etapes = [
+            Etape("Identifier — lire une ordonnée",
+                  f"$\\ln {a}$ est l'**ordonnée** du point de la courbe {noms['ln']} "
+                  f"d'abscisse ${a}$."),
+            Etape("Lire", f"On part de $x = {a}$ sur l'axe horizontal, on monte jusqu'à "
+                  f"la courbe {noms['ln']}, puis on lit la hauteur sur l'axe vertical."),
+            Etape("Vérifier — à la calculatrice",
+                  f"$\\ln {a} \\approx {_fr(math.log(a), 3)}$. Une lecture graphique à "
+                  "$0{,}1$ près est tout à fait suffisante."),
+            Etape("Interpréter",
+                  "Le logarithme croît, mais de plus en plus lentement : passer de 2 à "
+                  "5 ne fait gagner qu'environ $0{,}9$ en hauteur."),
+        ]
+        return_args = dict(reponse=math.log(a), libelle=f"ln {a} (lecture)",
+                           tolerance_abs=0.15,
+                           pieges=[(float(a), "Vous avez lu l'**abscisse**. La valeur "
+                                    "de $\\ln$ se lit sur l'axe **vertical**.")])
+    elif modele == "lire_exp":
+        b = random.choice([0.5, 1, 1.5])
+        enonce = f"""
+> Le graphique ci-dessus représente les fonctions $x \\mapsto e^{{x}}$
+> (courbe **{noms['exp']}**), $x \\mapsto \\ln x$ (courbe **{noms['ln']}**) et
+> $x \\mapsto x$ (droite **{noms['id']}**).
+>
+> Lisez sur le graphique une valeur approchée de $e^{{{L(b)}}}$.
+"""
+        etapes = [
+            Etape("Identifier — lire une ordonnée",
+                  f"$e^{{{L(b)}}}$ est l'**ordonnée** du point de la courbe "
+                  f"{noms['exp']} d'abscisse ${L(b)}$."),
+            Etape("Lire", f"On part de $x = {L(b)}$, on monte jusqu'à la courbe "
+                  f"{noms['exp']}, puis on lit la hauteur."),
+            Etape("Vérifier — à la calculatrice",
+                  f"$e^{{{L(b)}}} \\approx {_fr(math.exp(b), 3)}$."),
+            Etape("Interpréter",
+                  "L'exponentielle monte de plus en plus vite : c'est le miroir exact "
+                  "du logarithme, qui monte de plus en plus lentement."),
+        ]
+        return_args = dict(reponse=math.exp(b), libelle=f"e^{_facteur(b)} (lecture)",
+                           tolerance_abs=0.2,
+                           pieges=[(math.log(b), "Vous avez lu sur la courbe du "
+                                    "logarithme. Repérez d'abord la bonne courbe.")])
+    elif modele == "signe":
+        enonce = f"""
+> Le graphique ci-dessus représente les fonctions $x \\mapsto e^{{x}}$
+> (courbe **{noms['exp']}**), $x \\mapsto \\ln x$ (courbe **{noms['ln']}**) et
+> $x \\mapsto x$ (droite **{noms['id']}**).
+>
+> Pour quelles valeurs de $x$ a-t-on $\\ln x < 0$ ?
+"""
+        bonne = "0 < x < 1"
+        options = [bonne, "x < 1", "x > 1", "jamais : ln x est toujours positif"]
+        random.shuffle(options)
+        etapes = [
+            Etape("Identifier — où la courbe passe sous l'axe",
+                  f"$\\ln x < 0$ là où la courbe {noms['ln']} est **sous** l'axe des "
+                  "abscisses."),
+            Etape("Lire", "La courbe coupe l'axe en $x = 1$ (car $\\ln 1 = 0$) et "
+                  "n'existe que pour $x > 0$. Elle est sous l'axe entre les deux."),
+            Etape("Vérifier", "$\\ln 0{,}5 \\approx -0{,}69 < 0$ et "
+                  "$\\ln 2 \\approx 0{,}69 > 0$. ✓"),
+            Etape("Interpréter",
+                  "Le logarithme d'un nombre compris entre 0 et 1 est négatif : "
+                  "c'est le cas de tout taux de décroissance écrit comme coefficient "
+                  "($\\ln 0{,}95 < 0$)."),
+        ]
+        return_args = dict(
+            reponse=bonne, type_reponse="qcm", options=options, libelle="Réponse",
+            pieges=[("x < 1", "Le logarithme n'existe que pour $x > 0$ : la borne "
+                     "$0$ fait partie de la réponse."),
+                    ("x > 1", "C'est là que $\\ln x$ est **positif**."),
+                    ("jamais : ln x est toujours positif",
+                     "C'est l'**exponentielle** qui est toujours positive, pas le "
+                     "logarithme.")],
+        )
+    else:
+        enonce = f"""
+> Le graphique ci-dessus représente les fonctions $x \\mapsto e^{{x}}$
+> (courbe **{noms['exp']}**), $x \\mapsto \\ln x$ (courbe **{noms['ln']}**) et
+> $x \\mapsto x$ (droite **{noms['id']}**).
+>
+> Par rapport à quelle droite les courbes de exp et de ln sont-elles symétriques ?
+"""
+        bonne = "la droite y = x"
+        options = [bonne, "l'axe des abscisses", "l'axe des ordonnées", "la droite y = 1"]
+        random.shuffle(options)
+        etapes = [
+            Etape("Identifier — deux fonctions réciproques",
+                  "Si $e^{a} = b$, alors $\\ln b = a$ : le point $(a\\,;b)$ est sur la "
+                  "courbe de exp, et le point $(b\\,;a)$ sur celle de ln."),
+            Etape("Lire", "Échanger abscisse et ordonnée, c'est faire une symétrie par "
+                  f"rapport à la droite $y = x$ (droite **{noms['id']}**)."),
+            Etape("Vérifier", "$(0\\,;1)$ est sur exp, $(1\\,;0)$ est sur ln : ces deux "
+                  "points sont bien symétriques par rapport à $y = x$. ✓"),
+            Etape("Interpréter", "C'est la signature graphique de deux fonctions "
+                  "réciproques : chacune défait ce que fait l'autre."),
+        ]
+        return_args = dict(
+            reponse=bonne, type_reponse="qcm", options=options, libelle="Réponse",
+            pieges=[("l'axe des abscisses", "La symétrie par rapport à l'axe des "
+                     "abscisses changerait le signe : or $e^x$ et $\\ln x$ ne sont pas "
+                     "opposées.")],
+        )
+
+    ex = Exercice(enonce=enonce, etapes=etapes,
+                  indice="Repérez d'abord chaque courbe grâce à un point remarquable : "
+                  "$(0\\,;1)$ pour $e^x$, $(1\\,;0)$ pour $\\ln x$.",
+                  **return_args)
+    ex.etiquettes = noms  # lu par le graphique de l'onglet
+    return ex
+
+
+def _tracer_courbes(noms: dict) -> None:
+    """Trace les trois courbes avec leurs étiquettes neutres (Vega-Lite, sans
+    dépendance supplémentaire)."""
+    donnees = []
+    for i in range(161):
+        x = -3 + i * 0.05
+        if math.exp(x) <= 5:
+            donnees.append({"x": x, "y": math.exp(x), "courbe": noms["exp"]})
+        if x > 0.045:
+            donnees.append({"x": x, "y": math.log(x), "courbe": noms["ln"]})
+        donnees.append({"x": x, "y": x, "courbe": noms["id"]})
+    st.vega_lite_chart(
+        spec={
+            "data": {"values": donnees},
+            "mark": {"type": "line", "strokeWidth": 3, "clip": True},
+            "encoding": {
+                "x": {"field": "x", "type": "quantitative",
+                      "scale": {"domain": [-3, 5]}, "axis": {"tickCount": 8}},
+                "y": {"field": "y", "type": "quantitative",
+                      "scale": {"domain": [-3, 5]}, "axis": {"tickCount": 8}},
+                "color": {"field": "courbe", "type": "nominal",
+                          "sort": ETIQUETTES, "title": "Courbe"},
+                "order": {"field": "x", "type": "quantitative"},
+            },
+            "width": 420,
+            "height": 420,
+        },
+    )
 
 
 # --- 1. Propriétés du logarithme --------------------------------------------
@@ -530,26 +868,43 @@ st.markdown("---")
 
 onglets = st.tabs(
     [
-        "1️⃣ Propriétés du logarithme",
-        "2️⃣ L'inconnue en exposant",
-        "3️⃣ Temps de doublement",
-        "4️⃣ Taux annuel moyen",
+        "1️⃣ La définition",
+        "2️⃣ Lire les graphes",
+        "3️⃣ Propriétés du logarithme",
+        "4️⃣ L'inconnue en exposant",
+        "5️⃣ Temps de doublement",
+        "6️⃣ Taux annuel moyen",
     ]
 )
 
 with onglets[0]:
+    st.subheader("ln défait exp, exp défait ln")
+    executer("s7_definition", gen_definition)
+
+with onglets[1]:
+    st.subheader("Trois courbes, deux points remarquables")
+    # L'énoncé est généré ici, avant `executer`, pour que le graphique affiche
+    # les mêmes étiquettes que la question.
+    if "s7_graphe_ex" not in st.session_state:
+        st.session_state["s7_graphe_ex"] = gen_graphe()
+        st.session_state["s7_graphe_fait"] = False
+        st.session_state["s7_graphe_saisie"] = None
+    _tracer_courbes(st.session_state["s7_graphe_ex"].etiquettes)
+    executer("s7_graphe", gen_graphe)
+
+with onglets[2]:
     st.subheader("Produits en sommes, puissances en produits")
     executer("s7_proprietes", gen_proprietes)
 
-with onglets[1]:
+with onglets[3]:
     st.subheader("Débloquer une équation qui résistait")
     executer("s7_exposant", gen_inconnue_exposant)
 
-with onglets[2]:
+with onglets[4]:
     st.subheader("En combien de temps la dette double-t-elle ?")
     executer("s7_doublement", gen_doublement)
 
-with onglets[3]:
+with onglets[5]:
     st.subheader("Ce n'est pas une moyenne arithmétique")
     executer("s7_taux_moyen", gen_taux_moyen)
 
